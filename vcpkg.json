@@ -1,0 +1,24 @@
+{
+  "name": "abr-disk-tools",
+  "version": "1.0.0",
+  "builtin-baseline": "9d7f79f56ae1a9b4704d6a7fb8237e347a974133",
+  "dependencies": [
+    {
+      "name": "aws-sdk-cpp",
+      "default-features": false,
+      "features": ["s3"]
+    },
+    {
+      "name": "crc32c",
+      "platform": "windows | mingw"
+    },
+    {
+      "name": "openssl",
+      "platform": "windows | mingw"
+    },
+    {
+      "name": "zstd",
+      "platform": "windows | mingw"
+    }
+  ]
+}

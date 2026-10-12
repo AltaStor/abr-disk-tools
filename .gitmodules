@@ -1,0 +1,6 @@
+[submodule "abr-disk-lib"]
+	path = abr-disk-lib
+	url = https://github.com/AltaStor/abr-disk-lib.git
+[submodule "abr-backup-lib"]
+	path = abr-backup-lib
+	url = https://github.com/AltaStor/abr-backup-lib.git

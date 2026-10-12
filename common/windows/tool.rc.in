@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright © 2026 Norvitex OÜ
+//
+// Resources of @ABR_TOOL_NAME@.exe: its manifest and its version information.
+// Generated from common/windows/tool.rc.in by abr_add_tool(), once per tool.
+//
+#pragma code_page(65001)
+
+#include <winver.h>
+
+#include "version.h"
+
+// The manifest as resource 1 of type 24 (RT_MANIFEST), which is where the
+// loader looks for an executable's. Only for MinGW: MSVC's linker embeds it
+// itself, from the .manifest file abr_add_tool() hands it.
+#ifdef ABR_EMBED_MANIFEST
+1 24 "@ABR_TOOL_NAME@.manifest"
+#endif
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     ABR_DISK_TOOLS_VERSION_MAJOR, ABR_DISK_TOOLS_VERSION_MINOR, ABR_DISK_TOOLS_VERSION_PATCH, 0
+PRODUCTVERSION  ABR_DISK_TOOLS_VERSION_MAJOR, ABR_DISK_TOOLS_VERSION_MINOR, ABR_DISK_TOOLS_VERSION_PATCH, 0
+FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+FILEFLAGS       0
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName",      "Norvitex OÜ"
+            VALUE "FileDescription",  "@ABR_TOOL_DESCRIPTION@"
+            VALUE "FileVersion",      ABR_DISK_TOOLS_VERSION
+            VALUE "InternalName",     "@ABR_TOOL_NAME@"
+            VALUE "LegalCopyright",   "Copyright © 2026 Norvitex OÜ"
+            VALUE "OriginalFilename", "@ABR_TOOL_NAME@.exe"
+            VALUE "ProductName",      "AltaStor"
+            VALUE "ProductVersion",   ABR_DISK_TOOLS_VERSION
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END

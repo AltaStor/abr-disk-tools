@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright © 2026 Norvitex OÜ
+//
+// Version of the tools, one for all of them: they are built from one tree and
+// released together. Generated from common/version.h.in by CMake, which takes
+// the numbers from project() in the top-level CMakeLists.txt; change them there.
+//
+#pragma once
+
+#define ABR_DISK_TOOLS_VERSION "@PROJECT_VERSION@"
+#define ABR_DISK_TOOLS_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define ABR_DISK_TOOLS_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define ABR_DISK_TOOLS_VERSION_PATCH @PROJECT_VERSION_PATCH@

@@ -1,0 +1,9 @@
+build/
+build-*/
+_deps/
+CMakeFiles/
+CMakeCache.txt
+vcpkg_installed/
+vddk/
+.vscode/
+*.local.md

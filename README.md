@@ -166,6 +166,7 @@ The parameters:
 | Parameter | Values | Default | |
 | --- | --- | --- | --- |
 | `ABR_TARGET` | `auto`, `linux`, `windows`, `windows-cross` | `auto` | See [Targets](#targets). |
+| `ABR_ENABLED_TOOLS` | formats, separated by commas | empty | The tools to build, named outright: `vmdk`, or `vmdk,vhdx`. A tool not on the list is not built, and the `ABR_BUILD_<FMT>_TOOL` switches are not consulted; naming a tool the target does not support, or one that does not exist, is an error. Empty leaves it to those switches. |
 | `ABR_BUILD_VMDK_TOOL`, `ABR_BUILD_VHDX_TOOL` | `AUTO`, `ON`, `OFF` | `AUTO` | Whether to build that tool. `AUTO` is "when the target is one it supports"; `ON` for any other target is an error. |
 | `VDDK_DIR` | a path | `../vddk`, beside the repository | The VDDK, for `abr-vmdk-tool`. Only `include/vixDiskLib.h` has to exist to build. |
 | `ABR_BACKUPLIB_DIR` | a path | `abr-backup-lib/` | Another checkout of the backup library, for a change to both at once. |
@@ -247,7 +248,8 @@ whose backend `abr-disk-lib` already has:
    abr_tool(foo SYSTEMS Linux Windows)
    ```
 
-   That reads `foo-tool/` and creates `ABR_BUILD_FOO_TOOL`.
+   That reads `foo-tool/`, creates `ABR_BUILD_FOO_TOOL`, and makes `foo` a name
+   `ABR_ENABLED_TOOLS` takes.
 5. A manual in `doc/`, a `foo-tool/README.md`, and a row in the table at the top.
 
 The backend itself -- the classes derived from `IDiskReader` and `IDiskWriter`

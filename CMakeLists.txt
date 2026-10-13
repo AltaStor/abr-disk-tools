@@ -16,6 +16,8 @@
 #   ABR_TARGET              auto | linux | windows | windows-cross
 #   ABR_BUILD_<FMT>_TOOL    AUTO | ON | OFF, per tool; AUTO is "when the target
 #                           is one the tool supports"
+#   ABR_ENABLED_TOOLS       the tools to build, by format (vmdk, or vmdk,vhdx),
+#                           in place of those switches; empty leaves it to them
 cmake_minimum_required(VERSION 3.20)
 
 # Has to come before project(), which is where the toolchain is read.
@@ -66,12 +68,13 @@ include(cmake/tools.cmake)
 abr_tool(vmdk SYSTEMS Linux)
 abr_tool(vhdx SYSTEMS Windows)
 
-get_property(ABR_ENABLED_TOOLS GLOBAL PROPERTY ABR_ENABLED_TOOLS)
+abr_enabled_tool_folders(_abr_tool_folders)
 
-if(NOT ABR_ENABLED_TOOLS)
+if(NOT _abr_tool_folders)
     message(FATAL_ERROR
-        "No tool is built for ${CMAKE_SYSTEM_NAME} with the ABR_BUILD_<FMT>_TOOL switches as "
-        "they are. See README.md for which tool supports which target.")
+        "No tool is built for ${CMAKE_SYSTEM_NAME} with ABR_ENABLED_TOOLS and the "
+        "ABR_BUILD_<FMT>_TOOL switches as they are. See README.md for which tool supports "
+        "which target.")
 endif()
 
 # --- What every target below inherits ------------------------------------------
@@ -135,7 +138,7 @@ add_subdirectory(common)
 set(ABR_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 configure_file(common/version.h.in "${ABR_GENERATED_INCLUDE_DIR}/version.h" @ONLY)
 
-foreach(_abr_tool IN LISTS ABR_ENABLED_TOOLS)
+foreach(_abr_tool IN LISTS _abr_tool_folders)
     add_subdirectory(${_abr_tool})
 endforeach()
 

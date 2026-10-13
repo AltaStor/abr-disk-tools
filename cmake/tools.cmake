@@ -21,6 +21,17 @@
 # backends of every enabled tool. Each tool has to have had its say before that
 # library's target is created, and can only be linked after.
 
+# The tools to build, named outright: a list of formats, separated by commas or
+# semicolons -- -DABR_ENABLED_TOOLS=vmdk, or "vmdk,vhdx". Empty, the default,
+# leaves each tool to its own ABR_BUILD_<FORMAT>_TOOL.
+#
+# A list is the whole answer: a tool on it is built, one that is not is left
+# out, and the per-tool switches are not consulted. It is there for the build
+# that wants one tool and should not have to know what the others are called to
+# turn each of them off.
+set(ABR_ENABLED_TOOLS "" CACHE STRING
+    "Formats whose tools to build, e.g. vmdk or vmdk,vhdx; empty leaves it to ABR_BUILD_<FORMAT>_TOOL")
+
 # Declares a tool and decides whether this build has it.
 #
 #   abr_declare_tool(<format> SYSTEMS <CMAKE_SYSTEM_NAME>...)
@@ -29,6 +40,10 @@
 # AUTO, ON or OFF -- where AUTO means "when
 # the target is one of SYSTEMS". ON for any other target is an error rather
 # than a tool that fails to compile a screen later.
+#
+# A non-empty ABR_ENABLED_TOOLS takes the switch's place: the tool is built
+# when its format is on the list, and naming one that is not built for the
+# target is the same error ON is.
 #
 # Three states rather than an option(): an option's default is fixed by the
 # first configure, and the answer here depends on a target that a fresh build
@@ -56,7 +71,22 @@ function(abr_declare_tool format)
 
     string(REPLACE ";" ", " _systems "${_tool_SYSTEMS}")
 
-    if(${_switch} STREQUAL "AUTO")
+    abr_requested_tools(_requested)
+    set(_why_not "built for ${_systems}")
+
+    if(NOT _requested STREQUAL "")
+        if(NOT format IN_LIST _requested)
+            set(_enabled FALSE)
+            set(_why_not "not in ABR_ENABLED_TOOLS")
+        elseif(NOT _supported)
+            message(FATAL_ERROR
+                "ABR_ENABLED_TOOLS names ${format}, but abr-${format}-tool is built for "
+                "${_systems} and this build targets ${CMAKE_SYSTEM_NAME}. See README.md for "
+                "the targets and how to pick one.")
+        else()
+            set(_enabled TRUE)
+        endif()
+    elseif(${_switch} STREQUAL "AUTO")
         set(_enabled ${_supported})
     elseif(${_switch} AND NOT _supported)
         message(FATAL_ERROR
@@ -64,12 +94,16 @@ function(abr_declare_tool format)
             "targets ${CMAKE_SYSTEM_NAME}. See README.md for the targets and how to pick one.")
     else()
         set(_enabled ${${_switch}})
+        if(NOT _enabled)
+            set(_why_not "${_switch}=OFF")
+        endif()
     endif()
 
     set_property(GLOBAL APPEND PROPERTY ABR_ALL_TOOLS "${_folder}")
+    set_property(GLOBAL APPEND PROPERTY ABR_ALL_FORMATS "${format}")
 
     if(_enabled)
-        set_property(GLOBAL APPEND PROPERTY ABR_ENABLED_TOOLS "${_folder}")
+        set_property(GLOBAL APPEND PROPERTY ABR_ENABLED_TOOL_FOLDERS "${_folder}")
         message(STATUS "abr-${format}-tool: yes")
 
         # In the caller's scope, so that what it sets -- ABR_DISK_WITH_<X> in
@@ -77,12 +111,50 @@ function(abr_declare_tool format)
         # the libraries added afterwards.
         set(_abr_tool_config "${CMAKE_SOURCE_DIR}/${_folder}/tool.cmake" PARENT_SCOPE)
     else()
-        message(STATUS "abr-${format}-tool: no (built for ${_systems})")
+        message(STATUS "abr-${format}-tool: no (${_why_not})")
         set(_abr_tool_config "" PARENT_SCOPE)
     endif()
 endfunction()
 
-# The function above cannot include() on the caller's behalf -- a function has
+# ABR_ENABLED_TOOLS as a list: commas and semicolons both separate, case and
+# surrounding blanks do not matter.
+function(abr_requested_tools result)
+    string(REPLACE "," ";" _names "${ABR_ENABLED_TOOLS}")
+
+    set(_formats "")
+    foreach(_name IN LISTS _names)
+        string(STRIP "${_name}" _name)
+        string(TOLOWER "${_name}" _name)
+        if(NOT _name STREQUAL "")
+            list(APPEND _formats "${_name}")
+        endif()
+    endforeach()
+
+    set(${result} "${_formats}" PARENT_SCOPE)
+endfunction()
+
+# Call once every tool is declared. Hands back the folders of the tools this
+# build has, and stops on a name in ABR_ENABLED_TOOLS that no declaration
+# matched -- which abr_declare_tool cannot notice, seeing one tool at a time,
+# and which would otherwise be a misspelt tool silently not built.
+function(abr_enabled_tool_folders result)
+    get_property(_formats GLOBAL PROPERTY ABR_ALL_FORMATS)
+    get_property(_folders GLOBAL PROPERTY ABR_ENABLED_TOOL_FOLDERS)
+
+    abr_requested_tools(_requested)
+    string(REPLACE ";" ", " _known "${_formats}")
+
+    foreach(_name IN LISTS _requested)
+        if(NOT _name IN_LIST _formats)
+            message(FATAL_ERROR
+                "ABR_ENABLED_TOOLS names '${_name}', which is not a tool. The tools are: ${_known}.")
+        endif()
+    endforeach()
+
+    set(${result} "${_folders}" PARENT_SCOPE)
+endfunction()
+
+# abr_declare_tool cannot include() on the caller's behalf -- a function has
 # a scope of its own, and a tool.cmake's variables would end with it -- so the
 # declaration is this macro: the function decides, the macro includes.
 macro(abr_tool format)

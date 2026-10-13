@@ -17,13 +17,13 @@
 
 # The disk library: the submodule, unless pointed at another checkout -- for
 # working on a change to abr-disk-lib together with the tools that need it.
-set(ABR_DISK_LIB_DIR "${CMAKE_SOURCE_DIR}/abr-disk-lib"
+set(ABR_DISKLIB_DIR "${CMAKE_SOURCE_DIR}/abr-disk-lib"
     CACHE PATH "abr-disk-lib source tree")
 
-if(NOT EXISTS "${ABR_DISK_LIB_DIR}/CMakeLists.txt")
+if(NOT EXISTS "${ABR_DISKLIB_DIR}/CMakeLists.txt")
     message(FATAL_ERROR
-        "abr-disk-lib is missing at ${ABR_DISK_LIB_DIR}.\n"
+        "abr-disk-lib is missing at ${ABR_DISKLIB_DIR}.\n"
         "Run 'git submodule update --init --recursive', or name another checkout\n"
-        "with -DABR_DISK_LIB_DIR=/path/to/abr-disk-lib."
+        "with -DABR_DISKLIB_DIR=/path/to/abr-disk-lib."
     )
 endif()

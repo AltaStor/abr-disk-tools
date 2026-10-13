@@ -169,7 +169,7 @@ The parameters:
 | `ABR_BUILD_VMDK_TOOL`, `ABR_BUILD_VHDX_TOOL` | `AUTO`, `ON`, `OFF` | `AUTO` | Whether to build that tool. `AUTO` is "when the target is one it supports"; `ON` for any other target is an error. |
 | `VDDK_DIR` | a path | `../vddk`, beside the repository | The VDDK, for `abr-vmdk-tool`. Only `include/vixDiskLib.h` has to exist to build. |
 | `ABR_BACKUPLIB_DIR` | a path | `abr-backup-lib/` | Another checkout of the backup library, for a change to both at once. |
-| `ABR_DISK_LIB_DIR` | a path | `abr-disk-lib/` | Another checkout of the disk library, for a change to both at once. |
+| `ABR_DISKLIB_DIR` | a path | `abr-disk-lib/` | Another checkout of the disk library, for a change to both at once. |
 | `ABR_BACKUP_BUILD_UNIT_TESTS` | `ON`, `OFF` | `ON` native, `OFF` cross and MSVC | backuplib's unit tests. |
 | `CMAKE_BUILD_TYPE` | | `Debug` | |
 | `CMAKE_TOOLCHAIN_FILE` | a path | chosen as above | A compiler toolchain passed this way is still put behind vcpkg's when vcpkg is found. |

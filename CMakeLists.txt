@@ -128,7 +128,7 @@ include(cmake/backuplib.cmake)
 include(cmake/disklib.cmake)
 
 add_subdirectory("${ABR_BACKUPLIB_DIR}" backuplib_build)
-add_subdirectory("${ABR_DISK_LIB_DIR}" abr_disk_lib_build)
+add_subdirectory("${ABR_DISKLIB_DIR}" disklib_build)
 add_subdirectory(common)
 
 # One version for every tool's --version output and version resource.

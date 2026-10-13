@@ -96,8 +96,8 @@ Common to every build:
 - a C++20 compiler
 - the VMware Virtual Disk Development Kit (VDDK) -- not fetched by anything
   here. Broadcom gates it behind a support account, so download the SDK tarball
-  yourself and unpack it into `vddk/` at the repository root, so that
-  `vddk/include/vixDiskLib.h` exists, or name it with `-DVDDK_DIR=`. Only the
+  yourself and unpack it into `vddk/` beside the repository checkout, so that
+  `../vddk/include/vixDiskLib.h` exists, or name it with `-DVDDK_DIR=`. Only the
   **headers** are needed to build; the library is loaded at run time (see
   [vmdk-tool/README.md](vmdk-tool/README.md#vddk-and-the-library-search-path))
 - `libcrc32c`, installed on the system or resolvable through vcpkg
@@ -167,7 +167,7 @@ The parameters:
 | --- | --- | --- | --- |
 | `ABR_TARGET` | `auto`, `linux`, `windows`, `windows-cross` | `auto` | See [Targets](#targets). |
 | `ABR_BUILD_VMDK_TOOL`, `ABR_BUILD_VHDX_TOOL` | `AUTO`, `ON`, `OFF` | `AUTO` | Whether to build that tool. `AUTO` is "when the target is one it supports"; `ON` for any other target is an error. |
-| `VDDK_DIR` | a path | `vddk/` in the repository | The VDDK, for `abr-vmdk-tool`. Only `include/vixDiskLib.h` has to exist to build. |
+| `VDDK_DIR` | a path | `../vddk`, beside the repository | The VDDK, for `abr-vmdk-tool`. Only `include/vixDiskLib.h` has to exist to build. |
 | `ABR_BACKUPLIB_DIR` | a path | `abr-backup-lib/` | Another checkout of the backup library, for a change to both at once. |
 | `ABR_DISK_LIB_DIR` | a path | `abr-disk-lib/` | Another checkout of the disk library, for a change to both at once. |
 | `ABR_BACKUP_BUILD_UNIT_TESTS` | `ON`, `OFF` | `ON` native, `OFF` cross and MSVC | backuplib's unit tests. |

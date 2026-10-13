@@ -5,7 +5,10 @@
 # VDDK is, for abr-disk-lib to build its VMware backend against, and the RPATH
 # the tool is linked with because of it.
 
-set(VDDK_DIR "${CMAKE_SOURCE_DIR}/vddk" CACHE PATH "Path to the VMware VDDK root")
+# Beside the checkout rather than inside it by default: the bundle is neither
+# part of the repository nor specific to one checkout of it, and a sibling
+# directory is shared by every working tree next to it.
+set(VDDK_DIR "${CMAKE_SOURCE_DIR}/../vddk" CACHE PATH "Path to the VMware VDDK root")
 get_filename_component(VDDK_DIR "${VDDK_DIR}" ABSOLUTE BASE_DIR "${CMAKE_SOURCE_DIR}")
 
 set(VDDK_INCLUDE_DIR "${VDDK_DIR}/include")

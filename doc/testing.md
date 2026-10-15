@@ -19,6 +19,7 @@ VM's disks, but they do take checkpoints of it; see
 - [Running on the host](#running-on-the-host)
 - [Running from another machine](#running-from-another-machine)
 - [Testing on a cluster](#testing-on-a-cluster)
+- [Testing a repository on an SMB share](#testing-a-repository-on-an-smb-share)
 - [What is tested](#what-is-tested)
 - [Reading the output](#reading-the-output)
 - [What the test does to the VM](#what-the-test-does-to-the-vm)
@@ -29,8 +30,9 @@ VM's disks, but they do take checkpoints of it; see
 | File | Runs on | Purpose |
 | --- | --- | --- |
 | `Test-Vm.ps1` | the Hyper-V host | The test: one disk of one VM, through backup, restore, copy and the refusals. |
+| `Test-SmbShare.ps1` | the Hyper-V host | Every disk of one VM backed up to a repository on an SMB share, verified there and restored from it. |
 | `Test-OtherNode.ps1` | a second cluster node | Reads back, from another node, what `Test-Vm.ps1` left on a cluster shared volume. |
-| `hvlib.ps1` | — | Shared by the two: the WMI calls, the content hash, the pass/fail bookkeeping. |
+| `hvlib.ps1` | — | Shared by the three: the WMI calls, the content hash, the pass/fail bookkeeping. |
 | `hv.py` | Linux, macOS or Windows | Copies the tool and the scripts to a host and runs them there over WinRM. Optional. |
 | `requirements.txt` | — | What `hv.py` needs (`pypsrp`). |
 
@@ -130,6 +132,15 @@ test/hyperv/hv.py HOST put local.file 'C:\abr-test\remote.file'
 test/hyperv/hv.py HOST get 'C:\abr-test\remote.file' local.file
 ```
 
+A script's own secrets go with `run --secret PARAMETER=VARIABLE`, given
+before the script's name. The value of the local variable `VARIABLE` becomes
+the script's `-PARAMETER` as a SecureString. When the variable is not set,
+`hv.py` asks for the value. The value travels as a PSRP secure string,
+encrypted with a key of the session on top of WinRM's own encryption, and is
+never part of the script text the host runs. Script text is what PowerShell
+logs (event 4104), and Windows PowerShell 5.1 logs any script it finds
+suspicious even when no logging policy is set.
+
 ## Testing on a cluster
 
 A clustered VM is tested like any other, with two things to mind:
@@ -158,6 +169,58 @@ compares both results with the hash the first node recorded. It prints
 whether this node's I/O to the volume is direct or redirected, and removes the
 work directory at the end unless given `-Keep`.
 
+## Testing a repository on an SMB share
+
+`Test-Vm.ps1` keeps its repository on a local disk. `Test-SmbShare.ps1` puts
+it on a share (`--folder \\server\share\...`). backuplib then creates the
+repository folder by folder over a UNC path, and writes, renames and reads
+back its files through the SMB redirector:
+
+```bash
+test/hyperv/hv.py 192.0.2.10 run --secret SharePassword=SMB_PASSWORD --secret BackupKey=BACKUP_KEY \
+    Test-SmbShare.ps1 -VmName test-vm-01 -Share '\\192.0.2.20\share' -ShareUser test
+```
+
+It makes a recovery checkpoint and backs up **every** disk of the VM to the
+share. It turns the checkpoint into a reference point, then takes a second
+checkpoint and backs up an incremental of each disk against the first one.
+Then it checks that the repository is on the share and that `list` shows
+every backup, and runs `verify` on each backup over the network. Last, it
+restores each disk's chain from the share to a local VHDX and compares it,
+by SHA-256, with the checkpoint's disk after the full backup and again after
+the incremental. With `-BackupKey`, the backups are encrypted, and a restore
+without the key must be refused. That proves the key really reached the
+tool.
+
+Every call to the tool goes through `--stdin-keys`, with a key or
+without, since that is the path a backup server takes.
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `-VmName` | required | The VM to back up. |
+| `-Share` | required | `\\server\share`. The repository goes into a new `abr-test-<host>-<time>` directory on it. |
+| `-ShareUser` | none | Account for the share. The script connects to the share and disconnects at the end. Without an account, the session must already reach the share. Over WinRM it usually cannot, because the logon credentials do not travel a second hop. |
+| `-SharePassword` | none | Its password, as a SecureString. Required with `-ShareUser`. |
+| `-BackupKey` | none | Encryption key for the backups, as a SecureString. |
+| `-WorkDir` | `work-smb` next to the script | Where the restored disks go, one at a time. Must not exist yet. |
+| `-Tool` | `abr-vhdx-tool.exe` next to the script | The executable to test. |
+| `-Keep` | off | Leave the repository on the share and the work directory in place. |
+| `-KeepReferencePoints` | off | Leave the two reference points the test makes on the VM. |
+
+Neither secret is ever in plain text where something could record it.
+`hv.py run --secret` delivers both as SecureStrings, and run on the host they
+come from `Read-Host -AsSecureString`. The script hands the password to
+`WNetAddConnection2`, the call `net use` makes, from unmanaged memory that is
+zeroed afterwards, so no command line carries it. The backup key reaches the
+tool on its standard input, behind `--stdin-keys`; see `abr-vhdx-tool`'s
+manual. Neither appears in the script text that PowerShell may log, nor in any
+environment variable.
+
+A share of a standalone Samba server takes the bare user name. If Windows
+already holds a connection to the same server under another account, the
+connection fails with error 1219, "multiple connections to a server". Disconnect that connection first, or address the
+server by another name or address.
+
 ## What is tested
 
 `Test-Vm.ps1`, in order:
@@ -173,9 +236,13 @@ work directory at the end unless given `-Keep`.
    VHDX must hash the same as the checkpoint's disk at each step.
 4. **Copy** of the chain into one backup, verified and restored.
 5. Restore to a **VHD** and to a **raw file**.
-6. An **encrypted, uncompressed** backup; restore of it to a path with
-   non-ASCII characters. A wrong or missing key is refused by `verify`,
-   `restore` and `copy` before any target is created.
+6. An **encrypted, uncompressed** backup, its key on standard input
+   (`--stdin-keys`) like every key in the test; restore of it to a path
+   with non-ASCII characters. The key ends in a non-ASCII character, and a
+   `verify` given the same key with `-k` on the command line must accept it.
+   Both ways must deliver the same bytes. A wrong or missing key is refused by
+   `verify`, `restore` and `copy` before any target is created. So are a key
+   given both ways at once and an unknown name on standard input.
 7. **Refusals**: the running VM's current disk as a backup source and as a
    restore target (skipped when the VM is off), an incremental of a disk
    without change tracking, an existing target of another size, `--vhdx` with

@@ -97,22 +97,33 @@ try {
     Remove-Item -LiteralPath $raw, $chain
 
     # --- encryption, no compression, and a non-ASCII path ----------------------
-    Assert-Ok 'encrypted, uncompressed backup of a VHD' (Invoke-Tool backup @store --name enc --vhdx $vhd -k s3cret -c 0)
-    Assert-Ok 'verify with the right key' (Invoke-Tool verify @store --name enc -k s3cret)
+    # Keys go on standard input (--stdin-keys), as a backup server would
+    # pass them. This one ends in a Euro sign, spelled as a code point to keep
+    # this file ASCII: it has to reach the tool as the same UTF-8 down the pipe
+    # as on the command line, or a backup made one way could not be read back
+    # the other.
+    $keyText = 's3cret' + [char]0x20AC
+    $key = @{ key = $keyText }
+    $wrong = @{ key = 'wrong' }
+    Assert-Ok 'encrypted, uncompressed backup of a VHD, key on stdin' (Invoke-ToolSecret $key backup @store --name enc --vhdx $vhd -c 0)
+    Assert-Ok 'verify with the right key on stdin' (Invoke-ToolSecret $key verify @store --name enc)
+    Assert-Ok 'verify with the same key on the command line' (Invoke-Tool verify @store --name enc -k $keyText)
     Assert-Ok 'verify without a key' (Invoke-Tool verify @store --name enc)
-    Assert-Refused 'verify with a wrong key' (Invoke-Tool verify @store --name enc -k wrong) 'does not decrypt'
+    Assert-Refused 'verify with a wrong key' (Invoke-ToolSecret $wrong verify @store --name enc) 'does not decrypt'
+    Assert-Refused 'a key both on the command line and on stdin' (Invoke-ToolSecret $key verify @store --name enc -k $keyText) 'both on the command line'
+    Assert-Refused 'an unknown secret on stdin' (Invoke-ToolSecret @{ password = 'x' } verify @store --name enc) 'unknown secret'
     # "Proverka diska\disk.vhdx" in Cyrillic, spelled in code points to keep this file ASCII.
     $uniDir = Join-Path $out (-join ([char[]](0x41F, 0x440, 0x43E, 0x432, 0x435, 0x440, 0x43A, 0x430, 0x20, 0x434, 0x438, 0x441, 0x43A, 0x430)))
     $uni = Join-Path $uniDir ((-join ([char[]](0x434, 0x438, 0x441, 0x43A))) + '.vhdx')
     New-Item -ItemType Directory -Force $uniDir | Out-Null
-    Assert-Ok 'restore encrypted to a non-ASCII path' (Invoke-Tool restore @store --name enc -k s3cret --vhdx $uni)
+    Assert-Ok 'restore encrypted to a non-ASCII path' (Invoke-ToolSecret $key restore @store --name enc --vhdx $uni)
     Assert-Equal 'restored encrypted is identical' (Get-VhdContentHash $uni) $hashInc
     $wk = Join-Path $out 'wrongkey.vhdx'
-    Assert-Refused 'restore with a wrong key' (Invoke-Tool restore --json @store --name enc -k wrong --vhdx $wk) 'does not decrypt'
+    Assert-Refused 'restore with a wrong key' (Invoke-ToolSecret $wrong restore --json @store --name enc --vhdx $wk) 'does not decrypt'
     Assert-Refused 'restore without the key' (Invoke-Tool restore @store --name enc --vhdx $wk) 'is encrypted'
     Assert-That 'a refused key creates no virtual disk' (-not (Test-Path -LiteralPath $wk))
-    Assert-Refused 'copy with a wrong source key' (Invoke-Tool copy @store --source-names enc --source-key wrong --name cp) 'does not decrypt'
-    Assert-Ok 'copy with the right source key' (Invoke-Tool copy @store --source-names enc --source-key s3cret --name cp)
+    Assert-Refused 'copy with a wrong source key' (Invoke-ToolSecret @{ 'source-key' = 'wrong' } copy @store --source-names enc --name cp) 'does not decrypt'
+    Assert-Ok 'copy with the right source key' (Invoke-ToolSecret @{ 'source-key' = $keyText } copy @store --source-names enc --name cp)
     Remove-Item -Recurse -LiteralPath $uniDir, $vhd
 
     # --- refusals ----------------------------------------------------------------

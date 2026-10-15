@@ -110,13 +110,81 @@ function Get-FileContentHash($path) { [RawHash]::Hash($path, (Get-Item -LiteralP
 # lines, and the --json document if there was one. The tool's stderr arrives
 # as error records, which must not stop the script: a failure is often what a
 # test is after.
-function Invoke-Tool {
+function Invoke-Tool { Invoke-ToolWith $args $null }
+
+# The same with secrets: Invoke-ToolSecret @{ key = $k } restore ... hands them
+# to the tool on standard input, behind --stdin-keys, instead of on its
+# command line, which every process on the host can read. A value may be a
+# string or a SecureString; it is decrypted only to be written to the pipe.
+#
+# A plain function taking the table as its first argument rather than a
+# declared parameter: PowerShell would bind the tool's own -s or --source-key
+# to any parameter whose name they abbreviate.
+function Invoke-ToolSecret {
+    $secrets = $args[0]
+    $lines = @($secrets.GetEnumerator() | sort Name | % { '{0}={1}' -f $_.Name, (ConvertTo-PlainText $_.Value) })
+    Invoke-ToolWith (@($args | select -Skip 1) + '--stdin-keys') ($lines + '')
+}
+
+function Invoke-ToolWith([object[]]$ToolArgs, [string[]]$Stdin) {
     $ErrorActionPreference = 'Continue'
-    $lines = @(& $script:Tool @args 2>&1 | % { "$_" } | ? { $_ -notmatch '^\d+%$' })
+    if ($null -ne $Stdin) {
+        # Windows PowerShell pipes to a native program in ASCII, which turns
+        # every non-ASCII character of a key into '?' -- and consistently, so
+        # a backup and a restore both given the key this way still agree. It
+        # takes the encoding from the global $OutputEncoding only: one set in
+        # this function's scope is ignored.
+        $saved = $global:OutputEncoding
+        $global:OutputEncoding = New-Object Text.UTF8Encoding $false
+        try { $out = $Stdin | & $script:Tool @ToolArgs 2>&1 }
+        finally { $global:OutputEncoding = $saved }
+    } else {
+        $out = & $script:Tool @ToolArgs 2>&1
+    }
+    $lines = @($out | % { "$_" } | ? { $_ -notmatch '^\d+%$' })
     $result = [pscustomobject]@{ Exit = $LASTEXITCODE; Lines = $lines; Text = ($lines -join "`n"); Json = $null }
     if ($result.Text -match '(?s)\{.*\}') { try { $result.Json = $Matches[0] | ConvertFrom-Json } catch { } }
     $result
 }
+
+function ConvertTo-PlainText($value) {
+    if ($value -isnot [securestring]) { return [string]$value }
+    $p = [Runtime.InteropServices.Marshal]::SecureStringToGlobalAllocUnicode($value)
+    try { [Runtime.InteropServices.Marshal]::PtrToStringUni($p) }
+    finally { [Runtime.InteropServices.Marshal]::ZeroFreeGlobalAllocUnicode($p) }
+}
+
+# A connection to an SMB share under an account of its own, made the way net use makes it
+# but without net use's command line: the password goes from the SecureString straight to
+# WNetAddConnection2 in unmanaged memory, and is zeroed after. Like net use's, the connection
+# belongs to this logon session, so the tool, started from here, reaches the share through it.
+Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.Security;
+
+public static class SmbConnection {
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    class NetResource {
+        public int Scope, Type = 1 /* RESOURCETYPE_DISK */, DisplayType, Usage;
+        public string LocalName, RemoteName, Comment, Provider;
+    }
+    [DllImport("mpr.dll", CharSet = CharSet.Unicode, EntryPoint = "WNetAddConnection2W")]
+    static extern int WNetAddConnection2(NetResource resource, IntPtr password, string user, int flags);
+    [DllImport("mpr.dll", CharSet = CharSet.Unicode, EntryPoint = "WNetCancelConnection2W")]
+    static extern int WNetCancelConnection2(string name, int flags, bool force);
+
+    public static void Add(string share, string user, SecureString password) {
+        IntPtr p = Marshal.SecureStringToGlobalAllocUnicode(password);
+        try {
+            int e = WNetAddConnection2(new NetResource { RemoteName = share }, p, user, 0);
+            if (e != 0) throw new Win32Exception(e);
+        } finally { Marshal.ZeroFreeGlobalAllocUnicode(p); }
+    }
+    public static void Remove(string share) { WNetCancelConnection2(share, 0, true); }
+}
+'@
 
 $script:Passed = 0
 $script:Failed = 0

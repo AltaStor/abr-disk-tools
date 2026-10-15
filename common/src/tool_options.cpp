@@ -24,6 +24,7 @@ const Cli::LongOption Tool::kHeadLongOptions[] = {
     {"region",        Cli::Argument::Required, kOptRegion},
     {"access-key",    Cli::Argument::Required, kOptAccessKey},
     {"secret-key",    Cli::Argument::Required, kOptSecretKey},
+    {"stdin-keys",    Cli::Argument::None,     kOptStdinKeys},
     {"aws-profile",   Cli::Argument::Required, kOptProfile},
     {"path-style",    Cli::Argument::None,     kOptPathStyle},
     {"create-folder", Cli::Argument::None,     kOptCreateFolder},
@@ -102,6 +103,7 @@ bool Tool::parseSharedOptions(int argc, char* argv[], const Cli::LongOption* lon
             case kOptRegion: options.storage.region = arg; break;
             case kOptAccessKey: options.storage.accessKey = arg; break;
             case kOptSecretKey: options.storage.secretKey = arg; break;
+            case kOptStdinKeys: options.stdinKeys = true; break;
             case kOptProfile: options.storage.profile = arg; break;
             case kOptPathStyle: options.storage.pathStyle = true; break;
             case kOptCreateFolder: options.storage.createFolder = true; break;
@@ -146,6 +148,93 @@ bool Tool::parseSharedOptions(int argc, char* argv[], const Cli::LongOption* lon
                 }
                 break;
         }
+    }
+
+    // Read once the whole command line is in, so that a secret given there too
+    // is caught; and not for --help, which would otherwise sit waiting on a
+    // console for input nobody means to type.
+    if (options.stdinKeys && !options.help) {
+        return readStdinKeys(std::cin, options);
+    }
+    return true;
+}
+
+bool Tool::readStdinKeys(std::istream& in, CommonOptions& options)
+{
+    struct Secret {
+        const char* name;
+        bool onCommandLine;
+        std::function<void(const std::string&)> set;
+        bool seen = false;
+    };
+    Secret secrets[] = {
+        {"key", !options.storage.key.empty(),
+         [&](const std::string& v) { options.storage.key = v; }},
+        {"secret-key", !options.storage.secretKey.empty(),
+         [&](const std::string& v) { options.storage.secretKey = v; }},
+        {"source-key", options.sourceStorage.key.has_value(),
+         [&](const std::string& v) { options.sourceStorage.key = v; }},
+        {"source-secret-key", options.sourceStorage.secretKey.has_value(),
+         [&](const std::string& v) { options.sourceStorage.secretKey = v; }},
+    };
+
+    std::string line;
+    while (std::getline(in, line)) {
+        // Standard input is binary on Windows (see Plat::StdioSetup), so a line
+        // written by PowerShell or typed at a console keeps its carriage return.
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        if (line.empty()) {
+            break;
+        }
+
+        // Only ever the name in a message: the value is the one thing on this
+        // line that must not end up in a log.
+        size_t equals = line.find('=');
+        std::string name = line.substr(0, equals);
+        Secret* secret = nullptr;
+        for (Secret& candidate : secrets) {
+            if (name == candidate.name) {
+                secret = &candidate;
+            }
+        }
+
+        if (secret == nullptr) {
+            // A line without a name may well be a bare password, and an
+            // unknown "name" its first half; only something that looks like
+            // an option name is repeated back.
+            bool printable = equals != std::string::npos && !name.empty() && name.size() <= 32
+                             && name.find_first_not_of("abcdefghijklmnopqrstuvwxyz-") == std::string::npos;
+            std::cerr << "Error: --stdin-keys: ";
+            if (printable) {
+                std::cerr << "unknown secret '" << name << "'";
+            } else {
+                std::cerr << "a line is not name=value";
+            }
+            std::cerr << "; expected key, secret-key, source-key or source-secret-key\n";
+            return false;
+        }
+        if (equals == std::string::npos || equals + 1 == line.size()) {
+            std::cerr << "Error: --stdin-keys: no value for '" << name << "'\n";
+            return false;
+        }
+        if (secret->seen) {
+            std::cerr << "Error: --stdin-keys: '" << name << "' given twice\n";
+            return false;
+        }
+        if (secret->onCommandLine) {
+            std::cerr << "Error: --" << name << " given both on the command line and on standard input\n";
+            return false;
+        }
+
+        secret->set(line.substr(equals + 1));
+        secret->seen = true;
+    }
+
+    if (in.bad()) {
+        std::cerr << "Error: --stdin-keys: failed to read standard input\n";
+        return false;
     }
     return true;
 }

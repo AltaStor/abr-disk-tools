@@ -6,6 +6,7 @@
 #pragma once
 
 #include <functional>
+#include <istream>
 #include <optional>
 #include <string>
 #include <vector>
@@ -60,6 +61,8 @@ namespace Tool
         kOptSourceProfile,
         kOptSourcePathStyle,
         kOptSourceNoVerifyTls,
+
+        kOptStdinKeys,
 
         // Reserved: the library will never use a value at or above this, and
         // leaves room below it to add one. A tool's enum starts here.
@@ -132,6 +135,10 @@ namespace Tool
         bool help = false;
         bool json = false;
 
+        // The secrets come on standard input rather than on the command line,
+        // which every process on the host can read. See readStdinKeys.
+        bool stdinKeys = false;
+
         bool incremental() const { return type == "incremental" || type == "inc"; }
     };
 
@@ -182,6 +189,21 @@ namespace Tool
     //
     bool parseSharedOptions(int argc, char* argv[], const Cli::LongOption* longOptions,
                             CommonOptions& options, const ToolOptionHandler& setToolOption);
+
+    //
+    // What --stdin-keys reads: "name=value" lines, one per secret, up to an
+    // empty line or the end of the input. The names are the long options the
+    // values would otherwise be given with -- key, secret-key, source-key,
+    // source-secret-key. Whatever follows the empty line is left on the stream
+    // for the command, so that remove can still read its answer and meta_save
+    // its data from the same standard input.
+    //
+    // Refuses an unknown name, a name given twice, an empty value, and a
+    // secret also given on the command line: either would leave the tool to
+    // guess which value was meant, and an empty key would quietly make an
+    // unencrypted backup.
+    //
+    bool readStdinKeys(std::istream& in, CommonOptions& options);
 
     bool parseImmutabilityMode(const std::string& text, Abr::ImmutabilityMode& mode);
     bool parseRetentionDays(const std::string& text, int& days);

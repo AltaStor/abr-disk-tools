@@ -38,6 +38,10 @@ void Tool::printStorageOptions()
               << "      --region REGION     S3 region\n"
               << "      --access-key KEY    S3 access key\n"
               << "      --secret-key KEY    S3 secret key\n"
+              << "      --stdin-keys        Read key=, secret-key=, source-key= and\n"
+              << "                          source-secret-key= lines from standard input,\n"
+              << "                          up to an empty line, instead of taking them\n"
+              << "                          on the command line\n"
               << "      --aws-profile NAME  Shared AWS profile to take credentials from\n"
               << "      --path-style        Use path-style S3 addressing\n"
               << "      --no-verify-tls     Disable TLS verification for S3\n";

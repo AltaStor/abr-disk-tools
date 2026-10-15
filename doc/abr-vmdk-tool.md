@@ -87,6 +87,7 @@ these, prefixed `--source-` and described under [copy](#copy).
 | `--region` | `REGION` | S3 region. |
 | `--access-key` | `KEY` | S3 access key. Omit to fall back to the AWS SDK's normal credential resolution (environment, shared config, instance role, …). |
 | `--secret-key` | `KEY` | S3 secret key. Paired with `--access-key`. |
+| `--stdin-keys` | — | Read `--key`, `--secret-key`, `--source-key` and `--source-secret-key` from standard input instead of the command line. See [Secrets on standard input](#secrets-on-standard-input). |
 | `--aws-profile` | `NAME` | Named profile to take credentials from, instead of explicit keys. |
 | `--path-style` | — | Use path-style S3 addressing (`https://endpoint/bucket/key`) instead of virtual-hosted style. Needed for most S3-compatible object stores. |
 | `--no-verify-tls` | — | Disable TLS certificate verification for S3 requests. For endpoints with a self-signed or otherwise unverifiable certificate; avoid it against anything reachable over an untrusted network. |
@@ -97,6 +98,34 @@ have no effect.
 
 A backup's full location, as printed in reports and JSON, is
 `folder[/path]/name`.
+
+### Secrets on standard input
+
+Every process on the host can read another process's command line, and audit
+logs record it. A secret given as `--key`, `--secret-key`, `--source-key` or
+`--source-secret-key` is therefore exposed for the whole run. With
+`--stdin-keys`, the tool reads them from standard input instead, one per
+line as `name=value`:
+
+```console
+$ printf 'key=%s\nsecret-key=%s\n' "$KEY" "$S3_SECRET" |
+    abr-vmdk-tool backup --stdin-keys --mode s3 --folder backups --access-key AK --name web01-disk0 ...
+```
+
+- The names are the option names without the dashes: `key`, `secret-key`,
+  `source-key`, `source-secret-key`. The value is everything after the first
+  `=`, spaces included. A trailing `\r` is dropped, so a line ending in `\r\n` works too.
+- Input ends at an empty line or at end of file. Whatever follows the empty
+  line is left for the command: the `y` that [remove](#remove) asks for, or
+  the data [meta_save](#meta_save) reads from standard input.
+- A secret given both on the command line and on standard input is refused, so
+  are an unknown name, a name given twice and an empty value. The error names
+  the line's secret but never shows its value. A line that does not look like
+  `name=value` is not shown at all, since it may be a bare password.
+- With `--help`, nothing is read.
+
+The access key (`--access-key`) is an identifier rather than a secret and
+stays on the command line.
 
 ## VMDK (VDDK) options
 

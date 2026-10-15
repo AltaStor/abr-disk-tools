@@ -5,11 +5,14 @@
 //
 
 #include <cstdint>
+#include <cstdio>
 #include <iostream>
 #include <limits>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <unistd.h>
 
 #include "abr_backup.h"
 
@@ -547,5 +550,20 @@ int main(int argc, char* argv[])
 {
     static const Tool::Context context{kBranding, parseCommonOptions};
 
-    return Tool::run(argc, argv, context, dispatch);
+    const int result = Tool::run(argc, argv, context, dispatch);
+
+    // The exit status is the one verdict every caller reads, so it must not be
+    // left to exit(). Once the VDDK has been loaded, libvmacore has an atexit
+    // handler in the process that ends it with Vmacore::System::QuickExit(0) --
+    // a hard-coded 0, whatever main returned -- which turned every backup or
+    // restore that failed after opening its disk, a CRC32C mismatch included,
+    // into a success for the caller. Leaving through _exit() skips that
+    // handler, and with it the static destructors and atexit handlers that
+    // QuickExit skips anyway; every session, manager and the AWS SDK are torn
+    // down inside Tool::run by then. What _exit() does not do is flush, so the
+    // JSON document and the last diagnostics are pushed out first.
+    std::cout.flush();
+    std::cerr.flush();
+    std::fflush(nullptr);
+    _exit(result);
 }

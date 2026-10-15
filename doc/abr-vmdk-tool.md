@@ -44,8 +44,9 @@ Run 'abr-vmdk-tool <command> --help' for command-specific options.
 Pass --json to any command to get its result on stdout as a JSON document.
 ```
 
-`abr-vmdk-tool.sh -v` / `--version` prints the tool's version (currently
-`1.0.0`) and exits.
+`abr-vmdk-tool.sh -v` / `--version` prints the tool's version and exits: the
+full version of the package it came in (`26.11~pre+31.g6a11c8981539`, say), or
+`1.0.0` for a build that was not given one.
 
 ## Contents
 

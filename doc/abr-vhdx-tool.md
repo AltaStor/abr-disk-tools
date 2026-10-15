@@ -38,8 +38,9 @@ Run 'abr-vhdx-tool <command> --help' for command-specific options.
 Pass --json to any command to get its result on stdout as a JSON document.
 ```
 
-`abr-vhdx-tool.exe -v` / `--version` prints the tool's version (currently
-`1.0.0`) and exits.
+`abr-vhdx-tool.exe -v` / `--version` prints the tool's version and exits: the
+full version of the package it came in (`26.11~pre+31.g6a11c8981539`, say), or
+`1.0.0` for a build that was not given one.
 
 Options are parsed the way `getopt_long` parses them on Linux: `--name value`
 or `--name=value`, `-n value` or `-nvalue`, flags bundled as `-fh`, and any

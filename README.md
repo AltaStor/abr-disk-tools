@@ -157,6 +157,12 @@ an `.exe`; MSVC builds link the C runtime statically (`/MT`) to match. The
 the target platform, and given a few header names in the case the Windows SDK
 spells them ([cmake/mingw-case-shims](cmake/mingw-case-shims/README.md)).
 
+A MinGW build hardens its own code by itself: `-fstack-protector-strong`
+everywhere, `-D_FORTIFY_SOURCE=2` outside `Debug` (unless the flags passed in
+already name a level), and ASLR, 64-bit ASLR and DEP asked of the linker. A
+package build can therefore drop its distribution's hardening flags for
+MinGW -- it has to, since `-z relro` is ELF-only -- without losing them.
+
 The first configure for a target builds its dependencies, which takes a while
 (about ten minutes, most of it the AWS SDK); vcpkg caches the result, so later
 configures take seconds.
@@ -167,6 +173,8 @@ The parameters:
 | --- | --- | --- | --- |
 | `ABR_TARGET` | `auto`, `linux`, `windows`, `windows-cross` | `auto` | See [Targets](#targets). |
 | `ABR_ENABLED_TOOLS` | formats, separated by commas | empty | The tools to build, named outright: `vmdk`, or `vmdk,vhdx`. A tool not on the list is not built, and the `ABR_BUILD_<FMT>_TOOL` switches are not consulted; naming a tool the target does not support, or one that does not exist, is an error. Empty leaves it to those switches. |
+| `ABR_VERSION` | one to four numbers, each 0..65535 | `1.0.0` | The numeric version: `project()`'s, and the `FILEVERSION`/`PRODUCTVERSION` of each `.exe`. A release line and a build number, `26.11.31`. |
+| `ABR_VERSION_STRING` | text without quotes or backslashes | empty | The full version, `26.11~pre+31.g6a11c8981539`: what `--version` prints, and the `FileVersion`/`ProductVersion` strings of each `.exe`. Empty is `ABR_VERSION`. |
 | `ABR_BUILD_VMDK_TOOL`, `ABR_BUILD_VHDX_TOOL` | `AUTO`, `ON`, `OFF` | `AUTO` | Whether to build that tool. `AUTO` is "when the target is one it supports"; `ON` for any other target is an error. |
 | `VDDK_DIR` | a path | `../vddk`, beside the repository | The VDDK, for `abr-vmdk-tool`. Only `include/vixDiskLib.h` has to exist to build. |
 | `ABR_BACKUPLIB_DIR` | a path | `abr-backup-lib/` | Another checkout of the backup library, for a change to both at once. |

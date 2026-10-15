@@ -18,12 +18,18 @@
 #                           is one the tool supports"
 #   ABR_ENABLED_TOOLS       the tools to build, by format (vmdk, or vmdk,vhdx),
 #                           in place of those switches; empty leaves it to them
+#   ABR_VERSION             the numeric version, 26.11.31; 1.0.0 by default
+#   ABR_VERSION_STRING      the full version --version prints, 26.11~pre+31.g<hash>;
+#                           empty is ABR_VERSION
 cmake_minimum_required(VERSION 3.20)
 
 # Has to come before project(), which is where the toolchain is read.
 include(cmake/select-toolchain.cmake)
 
-project(abr-disk-tools VERSION 1.0.0 LANGUAGES CXX)
+# ABR_VERSION and ABR_VERSION_STRING, which project() takes the first of.
+include(cmake/version.cmake)
+
+project(abr-disk-tools VERSION ${ABR_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -121,6 +127,26 @@ endif()
 # beside it but Windows itself.
 if(MINGW)
     add_link_options(-static)
+endif()
+
+# Hardening for MinGW, which a package build's flags cannot supply: Debian's
+# set has to be dropped for MinGW whole, since -z relro is ELF-only and the PE
+# linker rejects it, and the stack protector and _FORTIFY_SOURCE would go with
+# it. mingw-w64's CRT has both checks in its static libraries, so neither
+# brings a DLL along. _FORTIFY_SOURCE only works with the optimizer, so not in
+# Debug, and not when the caller's flags already name a level of their own.
+# ASLR (64-bit included) and DEP are binutils' defaults for PE+ since 2.36;
+# asked for outright all the same, since an older linker leaves them off
+# without a word. Only for C and C++: the resource compiler sees
+# add_compile_options too.
+if(MINGW)
+    add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:-fstack-protector-strong>")
+
+    if(NOT "${CMAKE_C_FLAGS} ${CMAKE_CXX_FLAGS}" MATCHES "_FORTIFY_SOURCE")
+        add_compile_options("$<$<AND:$<COMPILE_LANGUAGE:C,CXX>,$<NOT:$<CONFIG:Debug>>>:-D_FORTIFY_SOURCE=2>")
+    endif()
+
+    add_link_options(-Wl,--dynamicbase -Wl,--nxcompat -Wl,--high-entropy-va)
 endif()
 
 # --- The libraries ------------------------------------------------------------

@@ -117,7 +117,7 @@ An unstripped cross build is large (tens of megabytes of debug information)
 and slow to copy over WinRM. Strip a copy and deploy that:
 
 ```bash
-x86_64-w64-mingw32-strip -o /tmp/abr-vhdx-tool.exe build-windows-cross/bin/abr-vhdx-tool.exe
+x86_64-w64-mingw32ucrt-strip -o /tmp/abr-vhdx-tool.exe build-windows-cross/bin/abr-vhdx-tool.exe
 test/hyperv/hv.py 192.0.2.10 deploy --exe /tmp/abr-vhdx-tool.exe
 ```
 

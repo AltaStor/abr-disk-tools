@@ -52,6 +52,31 @@ if(ABR_TARGET STREQUAL "windows-cross" AND NOT CMAKE_CROSSCOMPILING)
     message(FATAL_ERROR "ABR_TARGET=windows-cross, but this is not a cross build.")
 endif()
 
+# MinGW builds target the Universal C Runtime (see cmake/mingw-w64-x86_64.cmake
+# for why). A compiler of the classic msvcrt.dll kind would build and link
+# without complaint, and give a tool on a runtime nothing was tested on -- so
+# the compiler is asked which it is. mingw-w64's headers define _UCRT for a
+# UCRT toolchain. MSVC has had nothing else since 2015. A cross build has been
+# asked already, before vcpkg ran (cmake/mingw-w64-x86_64.cmake); this is for
+# the native MinGW one, MSYS2's.
+if(MINGW)
+    include(CheckCXXSourceCompiles)
+    check_cxx_source_compiles([[
+        #include <cstdlib>
+        #ifndef _UCRT
+        #error not a UCRT toolchain
+        #endif
+        int main() { return 0; }
+    ]] ABR_MINGW_IS_UCRT)
+
+    if(NOT ABR_MINGW_IS_UCRT)
+        message(FATAL_ERROR
+            "${CMAKE_CXX_COMPILER} builds against msvcrt.dll; the tools are built against the "
+            "Universal C Runtime. On Debian and Ubuntu install g++-mingw-w64-ucrt64; in MSYS2 "
+            "use the UCRT64 environment. README.md has the details.")
+    endif()
+endif()
+
 # The version resource every Windows tool carries.
 if(WIN32)
     enable_language(RC)

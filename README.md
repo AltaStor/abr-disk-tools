@@ -106,19 +106,24 @@ Common to every build:
 
 ### Linux to Windows (`windows-cross`): abr-vhdx-tool
 
-- MinGW-w64 with the `posix` thread model. On Debian or Ubuntu:
+- MinGW-w64 targeting the Universal C Runtime (UCRT), with the `posix`
+  thread model. On Debian 13 or later (and any distribution that packages it
+  under this name):
 
   ```bash
-  sudo apt install g++-mingw-w64-x86-64-posix
-  sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
-  sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+  sudo apt install g++-mingw-w64-ucrt64
   ```
 
-  The unsuffixed `x86_64-w64-mingw32-g++` is the one that counts: vcpkg builds
-  the dependencies with it, and a tool has to be built by the same compiler as
-  the libraries it links. The `win32` flavour has not been tried. A toolchain
-  installed elsewhere works too, as long as the directory with the unsuffixed
-  names is on `PATH`; the configure stops early if it is not.
+  That compiler is `x86_64-w64-mingw32ucrt-g++`, the default
+  `ABR_MINGW_TRIPLE`; vcpkg is handed the same one for the dependencies, since
+  a tool has to be built by the same compiler as the libraries it links. The
+  `.exe` then needs `ucrtbase.dll`, which every Windows from 10 and Server 2016
+  on has, and not `msvcrt.dll`. The `g++-mingw-w64-x86-64-*` packages are the
+  `msvcrt.dll` kind and are refused: the configure asks the compiler which
+  runtime it targets before vcpkg builds anything. A UCRT toolchain installed
+  elsewhere works too, as long as its directory is on `PATH`; one with the
+  classic names, `x86_64-w64-mingw32-g++`, is named with
+  `-DABR_MINGW_TRIPLE=x86_64-w64-mingw32`.
 
 - `perl` and `make`, which the OpenSSL port builds with.
 
@@ -131,8 +136,9 @@ Either of:
 
 - Visual Studio 2022 with the "Desktop development with C++" workload. Its
   developer prompt sets `VCPKG_ROOT` to the vcpkg it bundles, which will do.
-- MSYS2's MINGW64 environment with `mingw-w64-x86_64-toolchain`, `cmake` and
-  `ninja`, plus vcpkg as above.
+- MSYS2's UCRT64 environment with `mingw-w64-ucrt-x86_64-toolchain`, `cmake`
+  and `ninja`, plus vcpkg as above. Not MINGW64, whose compiler targets
+  `msvcrt.dll`; the configure refuses it.
 
 ## Configure
 
@@ -176,6 +182,7 @@ The parameters:
 | `ABR_VERSION` | one to four numbers, each 0..65535 | `1.0.0` | The numeric version: `project()`'s, and the `FILEVERSION`/`PRODUCTVERSION` of each `.exe`. A release line and a build number, `26.11.31`. |
 | `ABR_VERSION_STRING` | text without quotes or backslashes | empty | The full version, `26.11~pre+31.g6a11c8981539`: what `--version` prints, and the `FileVersion`/`ProductVersion` strings of each `.exe`. Empty is `ABR_VERSION`. |
 | `ABR_BUILD_VMDK_TOOL`, `ABR_BUILD_VHDX_TOOL` | `AUTO`, `ON`, `OFF` | `AUTO` | Whether to build that tool. `AUTO` is "when the target is one it supports"; `ON` for any other target is an error. |
+| `ABR_MINGW_TRIPLE` | a target triple | `x86_64-w64-mingw32ucrt` | `windows-cross` only: the MinGW-w64 compiler, `<triple>-g++` on `PATH`. It has to target UCRT. |
 | `VDDK_DIR` | a path | `../vddk`, beside the repository | The VDDK, for `abr-vmdk-tool`. Only `include/vixDiskLib.h` has to exist to build. |
 | `ABR_BACKUPLIB_DIR` | a path | `abr-backup-lib/` | Another checkout of the backup library, for a change to both at once. |
 | `ABR_DISKLIB_DIR` | a path | `abr-disk-lib/` | Another checkout of the disk library, for a change to both at once. |

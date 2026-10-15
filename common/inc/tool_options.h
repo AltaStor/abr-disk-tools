@@ -180,30 +180,47 @@ namespace Tool
     using ToolOptionHandler = std::function<bool(int value, const std::string& argument)>;
 
     //
+    // A secret of a tool's own that --stdin-keys takes as well, such as
+    // abr-vmdk-tool's --password. name is the tool's long option without the
+    // dashes; value is the field that option fills, which is how a secret given
+    // on the command line too is caught: it is no longer empty by the time
+    // standard input is read.
+    //
+    struct StdinKey {
+        const char* name;
+        std::string* value;
+    };
+    using StdinKeys = std::vector<StdinKey>;
+
+    //
     // Fills the options every command shares, handing a tool's own to
     // setToolOption. '?' from the parser is refused here, before the hook: the
     // parser has already reported it, and handing a failure to the tool to
     // reject again would read as if it were a value the tool did not know.
     //
     // setToolOption may be empty, for a parse that wants the shared half only.
+    // toolKeys are the tool's own secrets for --stdin-keys, beside the shared
+    // ones.
     //
     bool parseSharedOptions(int argc, char* argv[], const Cli::LongOption* longOptions,
-                            CommonOptions& options, const ToolOptionHandler& setToolOption);
+                            CommonOptions& options, const ToolOptionHandler& setToolOption,
+                            const StdinKeys& toolKeys = {});
 
     //
     // What --stdin-keys reads: "name=value" lines, one per secret, up to an
     // empty line or the end of the input. The names are the long options the
     // values would otherwise be given with -- key, secret-key, source-key,
-    // source-secret-key. Whatever follows the empty line is left on the stream
-    // for the command, so that remove can still read its answer and meta_save
-    // its data from the same standard input.
+    // source-secret-key, then the tool's own toolKeys. Whatever follows the
+    // empty line is left on the stream for the command, so that remove can
+    // still read its answer and meta_save its data from the same standard
+    // input.
     //
     // Refuses an unknown name, a name given twice, an empty value, and a
     // secret also given on the command line: either would leave the tool to
     // guess which value was meant, and an empty key would quietly make an
     // unencrypted backup.
     //
-    bool readStdinKeys(std::istream& in, CommonOptions& options);
+    bool readStdinKeys(std::istream& in, CommonOptions& options, const StdinKeys& toolKeys = {});
 
     bool parseImmutabilityMode(const std::string& text, Abr::ImmutabilityMode& mode);
     bool parseRetentionDays(const std::string& text, int& days);

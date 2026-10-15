@@ -87,7 +87,7 @@ these, prefixed `--source-` and described under [copy](#copy).
 | `--region` | `REGION` | S3 region. |
 | `--access-key` | `KEY` | S3 access key. Omit to fall back to the AWS SDK's normal credential resolution (environment, shared config, instance role, …). |
 | `--secret-key` | `KEY` | S3 secret key. Paired with `--access-key`. |
-| `--stdin-keys` | — | Read `--key`, `--secret-key`, `--source-key` and `--source-secret-key` from standard input instead of the command line. See [Secrets on standard input](#secrets-on-standard-input). |
+| `--stdin-keys` | — | Read `--key`, `--secret-key`, `--source-key`, `--source-secret-key` and `--password` from standard input instead of the command line. See [Secrets on standard input](#secrets-on-standard-input). |
 | `--aws-profile` | `NAME` | Named profile to take credentials from, instead of explicit keys. |
 | `--path-style` | — | Use path-style S3 addressing (`https://endpoint/bucket/key`) instead of virtual-hosted style. Needed for most S3-compatible object stores. |
 | `--no-verify-tls` | — | Disable TLS certificate verification for S3 requests. For endpoints with a self-signed or otherwise unverifiable certificate; avoid it against anything reachable over an untrusted network. |
@@ -102,8 +102,10 @@ A backup's full location, as printed in reports and JSON, is
 ### Secrets on standard input
 
 Every process on the host can read another process's command line, and audit
-logs record it. A secret given as `--key`, `--secret-key`, `--source-key` or
-`--source-secret-key` is therefore exposed for the whole run. With
+logs record it. A secret given as `--key`, `--secret-key`, `--source-key`,
+`--source-secret-key` or `--password` (the vCenter/ESXi password, see
+[VMDK (VDDK) options](#vmdk-vddk-options)) is therefore exposed for the whole
+run. With
 `--stdin-keys`, the tool reads them from standard input instead, one per
 line as `name=value`:
 
@@ -113,7 +115,7 @@ $ printf 'key=%s\nsecret-key=%s\n' "$KEY" "$S3_SECRET" |
 ```
 
 - The names are the option names without the dashes: `key`, `secret-key`,
-  `source-key`, `source-secret-key`. The value is everything after the first
+  `source-key`, `source-secret-key`, `password`. The value is everything after the first
   `=`, spaces included. A trailing `\r` is dropped, so a line ending in `\r\n` works too.
 - Input ends at an empty line or at end of file. Whatever follows the empty
   line is left for the command: the `y` that [remove](#remove) asks for, or
@@ -141,7 +143,7 @@ options below describe the vCenter/ESXi connection.
 | `--vmdk` | `PATH` | VMDK to read (backup) or write (restore), in place of `--source`/`--target`. Path syntax follows VDDK: a datastore path like `[datastore1] vm/vm.vmdk` for a host-backed disk, or a local filesystem path when `--host` is omitted. |
 | `--host` | `HOST` | ESXi or vCenter host to connect to. Omit to open `--vmdk` as a local file instead. |
 | `--user` | `NAME` | User name on the host. Required with `--host`. |
-| `--password` | `PASS` | Password on the host. Required with `--host`. |
+| `--password` | `PASS` | Password on the host. Required with `--host`, here or as `password=` with [`--stdin-keys`](#secrets-on-standard-input). |
 | `--vm` | `SPEC` | Managed object reference of the VM, e.g. `vm-1234`. Required with `--host`. |
 | `--thumbprint` | `PRINT` | SSL certificate thumbprint of the host, for hosts with a certificate that won't otherwise validate. |
 | `--port` | `PORT` | Host port. Default: `443`. |
@@ -149,7 +151,7 @@ options below describe the vCenter/ESXi connection.
 | `--transport` | `MODES` | Colon-separated VDDK transport mode list, tried in order, e.g. `nbdssl:nbd:hotadd:san`. Left to VDDK's own default when omitted. |
 | `--snapshot` | `MOREF` | Managed object reference of the VM snapshot to read from/write to, instead of the VM's current point. |
 
-`--host` requires `--user`, `--password` and `--vm` together; the tool checks
+`--host` requires `--user`, a password and `--vm` together; the tool checks
 this before connecting and reports whichever is missing rather than failing
 deep inside VDDK.
 
@@ -206,9 +208,10 @@ Immutability:      none
 An incremental backup:
 
 ```
-$ abr-vmdk-tool.sh backup --folder /srv/backups --name web01-sda-inc1 \
+$ printf 'password=%s\n' "$VC_PASSWORD" |
+    abr-vmdk-tool.sh backup --folder /srv/backups --name web01-sda-inc1 \
     --vmdk '[datastore1] web01/web01.vmdk' --host vc.example.com \
-    --user backup --password '***' --vm vm-1234 \
+    --user backup --stdin-keys --vm vm-1234 \
     --type incremental --change-id 52/1234
 ```
 

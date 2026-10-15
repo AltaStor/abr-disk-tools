@@ -100,7 +100,8 @@ void printVmdkOptions()
               << "      --vmdk PATH         VMDK to read/write instead of a local file\n"
               << "      --host HOST         ESXi/vCenter host; omit for a local VMDK file\n"
               << "      --user NAME         User name on the host\n"
-              << "      --password PASS     Password on the host\n"
+              << "      --password PASS     Password on the host; password= with\n"
+              << "                          --stdin-keys keeps it off the command line\n"
               << "      --vm SPEC           VM spec (like \"vm-XXXX\")\n"
               << "      --thumbprint PRINT  SSL certificate thumbprint of the host\n"
               << "      --port PORT         Host port (default: 443)\n"
@@ -221,10 +222,13 @@ bool parseOptions(int argc, char* argv[], Options& options)
 {
     static const Tool::OptionTable table(kToolLongOptions);
 
+    // The password of a vCenter administrator, as often as not: the one secret
+    // of this tool's own, and as exposed on the command line as the key.
     return Tool::parseSharedOptions(argc, argv, table.rows(), options,
         [&options](int value, const std::string& argument) {
             return setToolOption(options, value, argument);
-        });
+        },
+        {{"password", &options.vddk.password}});
 }
 
 //
@@ -256,7 +260,7 @@ bool checkVmdkOptions(const Options& options)
         return true; // local VMDK file, no credentials needed
     }
     if (options.vddk.user.empty() || options.vddk.password.empty()) {
-        std::cerr << "Error: --host requires --user and --password\n";
+        std::cerr << "Error: --host requires --user and --password (or password= with --stdin-keys)\n";
         return false;
     }
     if (options.vddk.vmxSpec.empty()) {

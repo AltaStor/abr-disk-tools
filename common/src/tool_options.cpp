@@ -75,7 +75,8 @@ Tool::OptionTable::OptionTable(const Cli::LongOption* own)
 }
 
 bool Tool::parseSharedOptions(int argc, char* argv[], const Cli::LongOption* longOptions,
-                              CommonOptions& options, const ToolOptionHandler& setToolOption)
+                              CommonOptions& options, const ToolOptionHandler& setToolOption,
+                              const StdinKeys& toolKeys)
 {
     Cli::OptionParser parser(argc, argv, kShortOptions, longOptions);
 
@@ -154,12 +155,12 @@ bool Tool::parseSharedOptions(int argc, char* argv[], const Cli::LongOption* lon
     // is caught; and not for --help, which would otherwise sit waiting on a
     // console for input nobody means to type.
     if (options.stdinKeys && !options.help) {
-        return readStdinKeys(std::cin, options);
+        return readStdinKeys(std::cin, options, toolKeys);
     }
     return true;
 }
 
-bool Tool::readStdinKeys(std::istream& in, CommonOptions& options)
+bool Tool::readStdinKeys(std::istream& in, CommonOptions& options, const StdinKeys& toolKeys)
 {
     struct Secret {
         const char* name;
@@ -167,7 +168,7 @@ bool Tool::readStdinKeys(std::istream& in, CommonOptions& options)
         std::function<void(const std::string&)> set;
         bool seen = false;
     };
-    Secret secrets[] = {
+    std::vector<Secret> secrets = {
         {"key", !options.storage.key.empty(),
          [&](const std::string& v) { options.storage.key = v; }},
         {"secret-key", !options.storage.secretKey.empty(),
@@ -177,6 +178,10 @@ bool Tool::readStdinKeys(std::istream& in, CommonOptions& options)
         {"source-secret-key", options.sourceStorage.secretKey.has_value(),
          [&](const std::string& v) { options.sourceStorage.secretKey = v; }},
     };
+    for (const StdinKey& key : toolKeys) {
+        std::string* value = key.value;
+        secrets.push_back({key.name, !value->empty(), [value](const std::string& v) { *value = v; }});
+    }
 
     std::string line;
     while (std::getline(in, line)) {
@@ -212,7 +217,11 @@ bool Tool::readStdinKeys(std::istream& in, CommonOptions& options)
             } else {
                 std::cerr << "a line is not name=value";
             }
-            std::cerr << "; expected key, secret-key, source-key or source-secret-key\n";
+            std::cerr << "; expected ";
+            for (size_t i = 0; i < secrets.size(); ++i) {
+                std::cerr << (i == 0 ? "" : i + 1 == secrets.size() ? " or " : ", ") << secrets[i].name;
+            }
+            std::cerr << "\n";
             return false;
         }
         if (equals == std::string::npos || equals + 1 == line.size()) {

@@ -2,12 +2,19 @@
 // Copyright © 2026 Norvitex OÜ
 //
 // Version of the tools, one for all of them: they are built from one tree and
-// released together. Generated from common/version.h.in by CMake, which takes
-// the numbers from project() in the top-level CMakeLists.txt; change them there.
+// released together. Generated from common/version.h.in by CMake, from the
+// ABR_VERSION and ABR_VERSION_STRING the build was configured with -- see
+// cmake/version.cmake.
 //
 #pragma once
 
-#define ABR_DISK_TOOLS_VERSION "@PROJECT_VERSION@"
-#define ABR_DISK_TOOLS_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
-#define ABR_DISK_TOOLS_VERSION_MINOR @PROJECT_VERSION_MINOR@
-#define ABR_DISK_TOOLS_VERSION_PATCH @PROJECT_VERSION_PATCH@
+// What --version prints and the version resource's FileVersion and
+// ProductVersion strings: ABR_VERSION_STRING, or ABR_VERSION without it.
+#define ABR_DISK_TOOLS_VERSION "@ABR_VERSION_TEXT@"
+
+// ABR_VERSION, by part, absent ones 0: the version resource's FILEVERSION and
+// PRODUCTVERSION.
+#define ABR_DISK_TOOLS_VERSION_MAJOR @ABR_VERSION_MAJOR@
+#define ABR_DISK_TOOLS_VERSION_MINOR @ABR_VERSION_MINOR@
+#define ABR_DISK_TOOLS_VERSION_PATCH @ABR_VERSION_PATCH@
+#define ABR_DISK_TOOLS_VERSION_TWEAK @ABR_VERSION_TWEAK@

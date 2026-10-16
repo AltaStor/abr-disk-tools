@@ -10,9 +10,9 @@
 
 #include "version.h"
 
-// The manifest as resource 1 of type 24 (RT_MANIFEST), which is where the
-// loader looks for an executable's. Only for MinGW: MSVC's linker embeds it
-// itself, from the .manifest file abr_add_tool() hands it.
+// The manifest as resource 1 of type 24 (RT_MANIFEST), which is where the loader
+// looks for an executable's. Only for MinGW: MSVC's linker embeds it itself,
+// from the .manifest file abr_add_tool() hands it.
 #ifdef ABR_EMBED_MANIFEST
 1 24 "@ABR_TOOL_NAME@.manifest"
 #endif

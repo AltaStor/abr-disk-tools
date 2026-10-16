@@ -151,9 +151,9 @@ bool Tool::parseSharedOptions(int argc, char* argv[], const Cli::LongOption* lon
         }
     }
 
-    // Read once the whole command line is in, so that a secret given there too
-    // is caught; and not for --help, which would otherwise sit waiting on a
-    // console for input nobody means to type.
+    // Read once the whole command line is in, so that a secret given there too is caught;
+    // and not for --help, which would otherwise sit waiting on a console for input
+    // nobody means to type.
     if (options.stdinKeys && !options.help) {
         return readStdinKeys(std::cin, options, toolKeys);
     }
@@ -168,6 +168,7 @@ bool Tool::readStdinKeys(std::istream& in, CommonOptions& options, const StdinKe
         std::function<void(const std::string&)> set;
         bool seen = false;
     };
+
     std::vector<Secret> secrets = {
         {"key", !options.storage.key.empty(),
          [&](const std::string& v) { options.storage.key = v; }},
@@ -178,6 +179,7 @@ bool Tool::readStdinKeys(std::istream& in, CommonOptions& options, const StdinKe
         {"source-secret-key", options.sourceStorage.secretKey.has_value(),
          [&](const std::string& v) { options.sourceStorage.secretKey = v; }},
     };
+
     for (const StdinKey& key : toolKeys) {
         std::string* value = key.value;
         secrets.push_back({key.name, !value->empty(), [value](const std::string& v) { *value = v; }});
@@ -265,8 +267,7 @@ bool Tool::parseImmutabilityMode(const std::string& text, Abr::ImmutabilityMode&
     return true;
 }
 
-// A retention period, counted in days like everywhere else in the library.
-// A retention period, counted in days like everywhere else in the library.
+// A retention period, counted in days (like everywhere else in the library)
 bool Tool::parseRetentionDays(const std::string& text, int& days)
 {
     if (text.empty() || text.find_first_not_of("0123456789") != std::string::npos) {
@@ -287,11 +288,8 @@ bool Tool::parseRetentionDays(const std::string& text, int& days)
 }
 
 // A compression level. Digits only, so that "3x" or "-1" is refused rather
-// than read as 3 or wrapped round -- and so that no std::stoi throws out of the
-// parser and takes the process down with it.
-// A compression level. Digits only, so that "3x" or "-1" is refused rather
-// than read as 3 or wrapped round -- and so that no std::stoi throws out of the
-// parser and takes the process down with it.
+// than read as 3 or wrapped round -- and so that no std::stoi throws out of
+// the parser and takes the process down with it.
 bool Tool::parseCompression(const std::string& text, int& level)
 {
     level = -1;
@@ -308,12 +306,9 @@ bool Tool::parseCompression(const std::string& text, int& level)
     return true;
 }
 
-// --source-names carries the whole chain as one comma-separated list. Nothing
-// records which backup an incremental was taken against -- the format keeps no
-// parent link -- so the order given here is what defines the chain.
-// --source-names carries the whole chain as one comma-separated list. Nothing
-// records which backup an incremental was taken against -- the format keeps no
-// parent link -- so the order given here is what defines the chain.
+// --source-names carries the whole chain as one comma-separated list.
+// Nothing records which backup an incremental was taken against (the format keeps no
+// parent link) so the order given here is what defines the chain.
 bool Tool::parseBackupNames(const std::string& text, std::vector<std::string>& names)
 {
     std::istringstream list(text);
@@ -338,6 +333,7 @@ bool Tool::parseBackupNames(const std::string& text, std::vector<std::string>& n
     }
     return true;
 }
+
 bool Tool::checkStorageOptions(const StorageOptions& storage)
 {
     if (storage.folder.empty()) {
@@ -351,8 +347,8 @@ bool Tool::checkStorageOptions(const StorageOptions& storage)
     return true;
 }
 
-// --vhdx takes the place of --source or --target; naming both would leave the
-// tool to guess which disk was meant.
+// --vhdx takes the place of --source or --target; naming both would leave
+// the tool to guess which disk was meant.
 bool Tool::checkBackupType(const CommonOptions& options, const char* diskOption, bool diskGiven)
 {
     if (options.type != "full" && !options.incremental()) {
@@ -369,8 +365,8 @@ bool Tool::checkBackupType(const CommonOptions& options, const char* diskOption,
     }
 
     // Changed block tracking is the hypervisor's: resilient change tracking on
-    // Hyper-V, changed block tracking on VMware. There is no equivalent for a
-    // plain file, and silently falling back to a full copy would be a trap.
+    // Hyper-V, changed block tracking on VMware. There is no equivalent for
+    // a plain file, and silently falling back to a full copy would be a trap.
     if (!diskGiven) {
         std::cerr << "Error: --type incremental requires " << diskOption << "\n";
         return false;
@@ -408,6 +404,7 @@ bool Tool::checkImmutabilityOptions(const CommonOptions& options)
     }
     return true;
 }
+
 // The storage a 'copy' reads its chain from: the destination's, with whatever
 // the --source-<...> options overrode put over it.
 Tool::StorageOptions Tool::sourceStorage(const CommonOptions& options)
@@ -435,8 +432,6 @@ Tool::StorageOptions Tool::sourceStorage(const CommonOptions& options)
     return storage;
 }
 
-// The source storage inherits the destination's folder and mode, both already
-// checked by then, so only what --source-<...> actually overrode can be wrong.
 // The source storage inherits the destination's folder and mode, both already
 // checked by then, so only what --source-<...> actually overrode can be wrong.
 bool Tool::checkSourceStorageOptions(const StorageOptions& source)

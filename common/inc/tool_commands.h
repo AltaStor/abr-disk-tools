@@ -16,8 +16,8 @@ namespace Tool
     //
     // What the shared commands need to know about the tool running them.
     //
-    // Reached through context() rather than passed as a parameter, so that the
-    // command bodies stayed a verbatim move out of each tool -- and because
+    // Reached through context() rather than passed as a parameter, so that
+    // the command bodies stayed a verbatim move out of each tool -- and because
     // interrupted(), buried inside the copy loops, needs the branding too and
     // would otherwise force a signature change on those as well.
     //
@@ -43,12 +43,11 @@ namespace Tool
                                        const std::string& command,
                                        int argc, char* argv[])>;
 
-    //
-    // Everything main() does around the command itself: the console and the
-    // standard streams, the UTF-8 argument vector, the AWS SDK lifetime, the
-    // interrupt handler, the program name, -h/--help and -v/--version, the
-    // stderr filter --json needs, the try/catch a storage library makes
-    // necessary, and the failure document a command that died owes its caller.
+    // Everything main() does around the command itself: the console and the standard
+    // streams, the UTF-8 argument vector, the AWS SDK lifetime, the interrupt handler,
+    // the program name, -h/--help and -v/--version, the stderr filter --json needs,
+    // the try/catch a storage library makes necessary, and the failure document
+    // a command that died owes its caller.
     //
     int run(int argc, char* argv[], const Context& context, const Dispatch& dispatch);
 

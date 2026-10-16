@@ -11,9 +11,9 @@
 #include "plat.h"
 #include "tool_commands.h"
 
-// Abr::S3BackupManagerParams and Abr::immutabilityModeName live here. Kept out
-// of the public headers: s3_backup.h pulls in <aws/core/Aws.h> and
-// <aws/s3/S3Client.h>, and the library's own headers stay AWS-free.
+// Abr::S3BackupManagerParams and Abr::immutabilityModeName live here.
+// Kept out of the public headers: s3_backup.h pulls in <aws/core/Aws.h>
+// and <aws/s3/S3Client.h>, and the library's own headers stay AWS-free.
 #include "s3_backup.h"
 
 bool Tool::interrupted()
@@ -73,6 +73,7 @@ std::string Tool::backupLocation(const StorageOptions& storage)
 {
     return backupLocation(storage, storage.name);
 }
+
 // Rounds a buffer size down to a whole number of sectors, keeping at least one.
 uint32_t Tool::alignBufferSize(uint32_t size, uint32_t sectorSize)
 {
@@ -86,8 +87,8 @@ uint32_t Tool::alignBufferSize(uint32_t size, uint32_t sectorSize)
 // Whether the key a backup was opened with decrypts it. backuplib wraps the
 // data key with AES-CTR, which carries no integrity, so openBackup "unwraps" it
 // with any password whatever and the mistake only shows at the first data
-// chunk -- when a restore has already created, attached and claimed its
-// target. Decrypting the first sector here, before anything is touched, turns
+// chunk -- when a restore has already created, attached and claimed its target.
+// Decrypting the first sector here, before anything is touched, turns
 // that into a plain refusal. The data itself is AES-GCM, so a wrong key cannot
 // pass for a right one.
 bool Tool::checkKey(Abr::IRestore& restore, const std::string& name, const std::string& key)
@@ -115,6 +116,7 @@ bool Tool::checkKey(Abr::IRestore& restore, const std::string& name, const std::
     }
 
     std::vector<uint8_t> sector(std::min<uint32_t>(ranges.front().length, info.sectorSize));
+
     if (!restore.loadDataRange(0, sector.data(), static_cast<uint32_t>(sector.size()), 0)) {
         std::cerr << "Error: the key does not decrypt backup '" << name << "'\n";
         return false;
@@ -214,6 +216,7 @@ bool Tool::copyFromBackup(Abr::IRestore& restore, IDiskWriter& writer, uint32_t 
     progress.finish();
     return writer.finish();
 }
+
 // Works out where every block of the merged image comes from, without reading
 // any data: what the copy loop below then does is drive the plan.
 bool Tool::buildCopyPlan(BackupChain& chain, std::vector<MergedPiece>& plan, uint64_t& total)
@@ -222,8 +225,8 @@ bool Tool::buildCopyPlan(BackupChain& chain, std::vector<MergedPiece>& plan, uin
     std::vector<CoveredRanges::Gap> gaps;
 
     // Newest backup first, and within it the last data range first: both are
-    // the order a restore applies them in, so the block that wins here is the
-    // one a restore of the whole chain would have left on the disk.
+    // the order a restore applies them in, so the block that wins here is
+    // the one a restore of the whole chain would have left on the disk.
     for (size_t i = chain.backups.size(); i-- > 0;) {
         std::vector<Abr::Range> ranges;
 
@@ -297,10 +300,9 @@ bool Tool::copyChainToBackup(BackupChain& chain, const std::vector<MergedPiece>&
     return true;
 }
 
-// Opens the chain and checks it is one: a full backup, then incrementals of the
-// same disk. Nothing links an incremental to its parent in the format, so the
-// order --source-names gives is taken as the chain and only what can be checked
-// -- the kind of each backup and the geometry they share -- is.
+// Opens the chain and checks it is one: a full backup, then incrementals of the same disk.
+// Nothing links an incremental to its parent in the format, so the order
+// --source-names gives is taken as the chain of backups.
 bool Tool::openChain(Abr::IBackupManager& manager, const StorageOptions& source,
                const std::vector<std::string>& names, BackupChain& chain)
 {

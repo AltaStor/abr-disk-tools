@@ -86,6 +86,7 @@ namespace Tool
 
         bool m_empty = true;
     };
+
     // The block of backup properties that 'backup' and 'info' both report.
     void addBackupInfo(JsonObject& json, const Abr::BackupInfo& info);
 
@@ -101,11 +102,11 @@ namespace Tool
     std::string backupImmutability(const Abr::BackupInfo& info);
     std::string folderImmutability(const Abr::BackupFolderInfo& folder);
 
-    // In --json mode the result document is the only thing a caller parses, so a
-    // command that fails still has to report through it. Every diagnostic in the
-    // tool and in the disk layers under it goes to std::cerr behind an "Error: "
-    // prefix; this filter keeps the first such line while passing everything --
-    // warnings and the disk layers' notes included -- on to the real stderr.
+    // In --json mode the result document is the only thing a caller parses, so
+    // a command that fails still has to report through it.
+    // Every diagnostic in the tool and in the disk layers under it goes to std::cerr
+    // behind an "Error: " prefix; this filter keeps the first such line while passing
+    // everything -- warnings and the disk layers' notes included -- on to the real stderr.
     class ErrorCollector : public std::streambuf
     {
     public:
@@ -155,6 +156,7 @@ namespace Tool
         std::string m_line;
         std::string m_firstError;
     };
+
     // Spotted ahead of the command, so that a failure is still reported as JSON
     // when it happens before -- or instead of -- the command's own option
     // parsing.

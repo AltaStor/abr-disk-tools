@@ -25,8 +25,8 @@ BOOL WINAPI onConsoleEvent(DWORD event)
         case CTRL_C_EVENT:
         case CTRL_BREAK_EVENT:
             // A second one, with the loop still not unwinding because a call
-            // is wedged, falls through to the default handler, which ends the
-            // process -- what SA_RESETHAND gives the POSIX side.
+            // is wedged, falls through to the default handler, which ends
+            // the process -- what SA_RESETHAND gives the POSIX side.
             return g_interrupted.exchange(true) ? FALSE : TRUE;
 
         case CTRL_CLOSE_EVENT:

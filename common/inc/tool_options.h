@@ -45,9 +45,9 @@ namespace Tool
         kOptType,
         kOptJson,
 
-        // The chain 'copy' merges, and the storage it is read from. Each of the
-        // storage options mirrors a destination one and falls back to it, so a
-        // copy inside one repository needs none of them and a copy between two
+        // The chain 'copy' merges, and the storage it is read from.
+        // Each of the storage options mirrors a destination one and falls back to it,
+        // so a copy inside one repository needs none of them and a copy between two
         // needs only what actually differs.
         kOptSourceNames,
         kOptSourceMode,
@@ -87,10 +87,10 @@ namespace Tool
         bool createFolder = false;
     };
 
-    // What the --source-<...> options overrode, and nothing else. A field left
-    // unset is taken from the destination storage, which is what lets 'copy'
-    // read a chain out of the same repository it writes to without being told
-    // twice.
+    // What the --source-<...> options overrode, and nothing else.
+    // A field left unset is taken from the destination storage, which is what
+    // lets 'copy' read a chain out of the same repository it writes to without
+    // being told twice.
     struct SourceStorageOptions {
         std::optional<std::string> mode;
         std::optional<std::string> folder;
@@ -105,7 +105,6 @@ namespace Tool
         std::optional<bool> verifyTls;
     };
 
-    //
     // Named CommonOptions, not Options, and that is not cosmetic: each tool
     // derives its own "struct Options : Tool::CommonOptions" and keeps it at
     // global scope, where a "using namespace Tool;" is in effect. Two types
@@ -149,8 +148,8 @@ namespace Tool
     //
     // The table Cli::OptionParser wants is one null-terminated array, and its
     // prefix matching makes the ORDER observable: "--t" names four options in
-    // abr-vmdk-tool, and the ambiguity message lists them in table order. So
-    // the library hands out its rows in the two blocks they occupy today --
+    // abr-vmdk-tool, and the ambiguity message lists them in table order.
+    // So the library hands out its rows in the two blocks they occupy today --
     // the shared options before a tool's, the --source-<...> ones after --
     // rather than as one block a tool would have to append to.
     //
@@ -158,8 +157,8 @@ namespace Tool
     extern const Cli::LongOption kTailLongOptions[];
 
     //
-    // kHeadLongOptions, then the tool's own rows, then kTailLongOptions, as the
-    // single array the parser takes. Joined at run time rather than by a macro
+    // kHeadLongOptions, then the tool's own rows, then kTailLongOptions, as
+    // the single array the parser takes. Joined at run time rather than by a macro
     // so that both halves stay plain, commentable C++ rows.
     //
     class OptionTable
@@ -175,16 +174,15 @@ namespace Tool
     };
 
     // Called for a value the library does not know -- a tool's own row, which
-    // is to say a value at or above kOptToolFirst. Returns false for an
-    // argument it rejects, having said why on std::cerr behind "Error: ".
+    // is to say a value at or above kOptToolFirst.
+    // Returns false for an argument it rejects, having said why on std::cerr
+    // behind "Error: ".
     using ToolOptionHandler = std::function<bool(int value, const std::string& argument)>;
 
-    //
     // A secret of a tool's own that --stdin-keys takes as well, such as
-    // abr-vmdk-tool's --password. name is the tool's long option without the
-    // dashes; value is the field that option fills, which is how a secret given
-    // on the command line too is caught: it is no longer empty by the time
-    // standard input is read.
+    // abr-vmdk-tool's --password. name is the tool's long option without the dashes;
+    // value is the field that option fills, which is how a secret given on the command
+    // line too is caught: it is no longer empty by the time standard input is read.
     //
     struct StdinKey {
         const char* name;
@@ -192,33 +190,28 @@ namespace Tool
     };
     using StdinKeys = std::vector<StdinKey>;
 
-    //
-    // Fills the options every command shares, handing a tool's own to
-    // setToolOption. '?' from the parser is refused here, before the hook: the
-    // parser has already reported it, and handing a failure to the tool to
-    // reject again would read as if it were a value the tool did not know.
+    // Fills the options every command shares, handing a tool's own to setToolOption.
+    // '?' from the parser is refused here, before the hook: the parser has already
+    // reported it, and handing a failure to the tool to reject again would read
+    // as if it were a value the tool did not know.
     //
     // setToolOption may be empty, for a parse that wants the shared half only.
-    // toolKeys are the tool's own secrets for --stdin-keys, beside the shared
-    // ones.
+    // toolKeys are the tool's own secrets for --stdin-keys, beside the shared ones.
     //
     bool parseSharedOptions(int argc, char* argv[], const Cli::LongOption* longOptions,
                             CommonOptions& options, const ToolOptionHandler& setToolOption,
                             const StdinKeys& toolKeys = {});
 
+    // What --stdin-keys reads: "name=value" lines, one per secret, up to an empty
+    // line or the end of the input.
+    // The names are the long options the values would otherwise be given with --
+    // key, secret-key, source-key, source-secret-key, then the tool's own toolKeys.
+    // Whatever follows the empty line is left on the stream for the command, so that
+    // remove can still read its answer and meta_save its data from the same standard input.
     //
-    // What --stdin-keys reads: "name=value" lines, one per secret, up to an
-    // empty line or the end of the input. The names are the long options the
-    // values would otherwise be given with -- key, secret-key, source-key,
-    // source-secret-key, then the tool's own toolKeys. Whatever follows the
-    // empty line is left on the stream for the command, so that remove can
-    // still read its answer and meta_save its data from the same standard
-    // input.
-    //
-    // Refuses an unknown name, a name given twice, an empty value, and a
-    // secret also given on the command line: either would leave the tool to
-    // guess which value was meant, and an empty key would quietly make an
-    // unencrypted backup.
+    // Refuses an unknown name, a name given twice, an empty value, and a secret also given
+    // on the command line: either would leave the tool to guess which value was meant,
+    // and an empty key would quietly make an unencrypted backup.
     //
     bool readStdinKeys(std::istream& in, CommonOptions& options, const StdinKeys& toolKeys = {});
 
@@ -231,12 +224,11 @@ namespace Tool
     bool checkSourceStorageOptions(const StorageOptions& source);
     bool checkImmutabilityOptions(const CommonOptions& options);
 
-    //
-    // Whether --type names a kind this run can actually take. diskOption is the
-    // tool's own disk option ("--vhdx", "--vmdk") and diskGiven whether it was
-    // named: an incremental rests on the hypervisor's own changed block
-    // tracking, which a plain file has no equivalent of, and silently falling
-    // back to a full copy would be a trap.
+    // Whether --type names a kind this run can actually take. 
+    // diskOption is the tool's own disk option ("--vhdx", "--vmdk") and
+    // diskGiven whether it was named: an incremental rests on the hypervisor's
+    // own changed block tracking, which a plain file has no equivalent of, and
+    // silently falling back to a full copy would be a trap.
     //
     bool checkBackupType(const CommonOptions& options, const char* diskOption, bool diskGiven);
 

@@ -44,8 +44,8 @@ const Tool::Branding kBranding = {
     "releasing the disk and the VM",
 };
 
-// This tool's half of the option table. Adding one of its options means a
-// value here, a row in kToolLongOptions below, and a case in setToolOption --
+// This tool's half of the option table. Adding one of its options means
+// a value here, a row in kToolLongOptions below, and a case in setToolOption --
 // the same three places a shared option needs, over in common/.
 enum LongOnlyOption {
     kOptVmdk = Tool::kOptToolFirst,
@@ -231,10 +231,9 @@ bool parseOptions(int argc, char* argv[], Options& options)
         {{"password", &options.vddk.password}});
 }
 
-//
-// Handed to Tool::Context for the commands common/ runs. Not called
-// parseSharedOptions: that is the library's own entry point, and under the
-// using-directive above two functions of that name would be one overload set.
+// Handed to Tool::Context for the commands common/ runs. Not called parseSharedOptions:
+// that is the library's own entry point, and under the using-directive above two functions
+// of that name would be one overload set.
 //
 // The commands want the shared half only, which a full parse yields as its
 // base -- and the slice is on purpose: nothing in those commands reads this
@@ -395,7 +394,9 @@ int runBackup(const std::string& programName, int argc, char* argv[])
                   << (options.incremental() ? "incremental (changed since " + options.changeId + ")"
                                             : std::string("full")) << "\n"
                   << "Raw data size:     " << info.orig_data_size << " bytes\n"
-                  << "Compression:       " << (info.compression ? ("zstd level " + std::to_string(info.compression)) : std::string("none")) << "\n";
+                  << "Compression:       " << (info.compression ?
+                            ("zstd level " + std::to_string(info.compression)) : std::string("none")) << "\n";
+
         if (info.compression && info.orig_data_size > 0) {
             std::cout << "Stored data size:  " << info.stored_data_size << " bytes\n"
                 << "Compression ratio: " << static_cast<double>(info.stored_data_size) / info.orig_data_size << "\n";
@@ -405,8 +406,7 @@ int runBackup(const std::string& programName, int argc, char* argv[])
                   << (options.immutability == Abr::ImmutabilityMode::NONE
                           ? std::string("none")
                           : std::string(Abr::immutabilityModeName(options.immutability))
-                                + ", retained for " + std::to_string(options.retentionDays) + " day(s)")
-                  << "\n";
+                                + ", retained for " + std::to_string(options.retentionDays) + " day(s)") << "\n";
     }
     return 0;
 }
@@ -445,9 +445,9 @@ int runRestore(const std::string& programName, int argc, char* argv[])
     const Abr::BackupInfo& info = pRestore->getInfo();
 
     // An incremental holds only what changed since its parent, so restoring it
-    // by itself leaves every other block untouched -- an empty disk if the
-    // target started empty. Applying one onto a target that already carries the
-    // full restore is legitimate, and that is what --force says.
+    // by itself leaves every other block untouched -- an empty disk if the target
+    // started empty. Applying one onto a target that already carries the full
+    // restore is legitimate, and that is what --force says.
     if (info.incremental && !options.force) {
         std::cerr << "Error: '" << options.storage.name
                   << "' is an incremental backup and holds only the blocks that changed since\n"
@@ -518,7 +518,6 @@ int runRestore(const std::string& programName, int argc, char* argv[])
     return 0;
 }
 
-//
 // The command table. Everything but 'backup' and 'restore' is common/'s,
 // since only those two touch the VDDK. 
 // Adding a command means a branch here, a // print<Cmd>Help, and -- if it is one
@@ -556,15 +555,14 @@ int main(int argc, char* argv[])
 
     const int result = Tool::run(argc, argv, context, dispatch);
 
-    // The exit status is the one verdict every caller reads, so it must not be
-    // left to exit(). Once the VDDK has been loaded, libvmacore has an atexit
-    // handler in the process that ends it with Vmacore::System::QuickExit(0) --
-    // a hard-coded 0, whatever main returned -- which turned every backup or
-    // restore that failed after opening its disk, a CRC32C mismatch included,
-    // into a success for the caller. Leaving through _exit() skips that
-    // handler, and with it the static destructors and atexit handlers that
-    // QuickExit skips anyway; every session, manager and the AWS SDK are torn
-    // down inside Tool::run by then. What _exit() does not do is flush, so the
+    // FIXME: The exit status is the one verdict every caller reads, so it must not be left to exit().
+    // Once the VDDK has been loaded, libvmacore has an atexit handler in the process that
+    // ends it with Vmacore::System::QuickExit(0) (a hard-coded 0, whatever main returned) 
+    // which turned every backup or restore that failed after opening its disk, a CRC32C
+    // mismatch included, into a success for the caller.
+    // Leaving through _exit() skips that handler, and with it the static destructors and
+    // atexit handlers that QuickExit skips anyway; every session, manager and the AWS SDK are
+    // torn down inside Tool::run by then. What _exit() does not do is flush, so the
     // JSON document and the last diagnostics are pushed out first.
     std::cout.flush();
     std::cerr.flush();

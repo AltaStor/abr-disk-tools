@@ -18,16 +18,16 @@
 
 namespace Tool
 {
-    // Reports the interruption once, at the point a copy loop notices it. The
-    // catching is Plat::installInterruptHandler's; the wording comes from the
-    // running tool's Branding, since what has to be released differs.
+    // Reports the interruption once, at the point a copy loop notices it.
+    // The catching is Plat::installInterruptHandler's; the wording comes from
+    // the running tool's Branding, since what has to be released differs.
     bool interrupted();
 
     class ProgressPrinter
     {
     public:
-        // Interactively each percentage rewrites the one before it, which needs a
-        // carriage return. A --json caller is reading stdout a line at a time, so
+        // Interactively each percentage rewrites the one before it, which needs
+        // a carriage return. A --json caller is reading stdout a line at a time, so
         // there each gets a line of its own instead -- still plain "NN%" text,
         // ahead of the result document rather than part of it.
         ProgressPrinter(uint64_t total, bool linePerUpdate)
@@ -55,6 +55,7 @@ namespace Tool
         uint64_t m_done = 0;
         int m_lastPercent = -1;
     };
+
     std::shared_ptr<Abr::IBackupManager> openManager(const StorageOptions& storage);
 
     std::string storageLocation(const StorageOptions& storage);
@@ -98,8 +99,8 @@ namespace Tool
         };
 
         // Adds [begin, end) and reports back the parts of it that nothing had taken
-        // yet, in ascending order. Those are what still has to be read from the
-        // backup the interval came from.
+        // yet, in ascending order. Those are what still has to be read from
+        // the backup the interval came from.
         void add(uint64_t begin, uint64_t end, std::vector<Gap>& gaps)
         {
             if (begin >= end) {
@@ -144,8 +145,8 @@ namespace Tool
         std::map<uint64_t, uint64_t> m_ranges; // begin -> end
     };
 
-    // One run of bytes the copy takes from one data range of one backup of the
-    // chain, and where in the image it belongs.
+    // One run of bytes the copy takes from one data range of one backup of
+    // the chain, and where in the image it belongs.
     struct MergedPiece {
         uint64_t origOffset; // offset in the original image
         uint32_t backup;     // index in the chain
@@ -153,7 +154,9 @@ namespace Tool
         uint32_t offset;     // offset within that data range
         uint32_t length;
     };
+
     bool buildCopyPlan(BackupChain& chain, std::vector<MergedPiece>& plan, uint64_t& total);
+
     bool copyChainToBackup(BackupChain& chain, const std::vector<MergedPiece>& plan,
                            uint64_t total, Abr::IBackup& backup, uint32_t bufferSize,
                            bool linePerUpdate);

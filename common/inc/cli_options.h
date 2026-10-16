@@ -21,12 +21,12 @@ namespace Cli
     // Walks a command's arguments the way getopt_long does, so that the tool
     // takes the same command lines on Windows as abr-vmdk-tool does on Linux:
     // "--name value" and "--name=value", "-n value" and "-nvalue", flags
-    // bundled as "-fh", and any unambiguous prefix of a long option. MSVC has
-    // no getopt_long, and MinGW's reports its errors in a shape the tool's
+    // bundled as "-fh", and any unambiguous prefix of a long option.
+    // MSVC has no getopt_long, and MinGW's reports its errors in a shape the tool's
     // --json failure document cannot pick up.
     //
-    // It differs in two places, both on purpose. An argument that is not an
-    // option is refused instead of being set aside, since no command takes one
+    // It differs in two places, both on purpose. An argument that is not
+    // an option is refused instead of being set aside, since no command takes one
     // and a stray word is a mistake, not an operand. And every complaint goes
     // to std::cerr behind "Error: ", where main() finds it for the JSON report.
     //

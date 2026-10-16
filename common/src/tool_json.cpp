@@ -7,16 +7,15 @@
 
 #include <sstream>
 
-// Abr::immutabilityModeName lives here. Kept out of tool_json.h on purpose:
-// s3_backup.h pulls in <aws/core/Aws.h> and <aws/s3/S3Client.h>, and the
-// library's public headers stay AWS-free so that its consumers' other
-// translation units do too.
+// Abr::immutabilityModeName lives here.
+// It kept out of tool_json.h on purpose:
+// s3_backup.h pulls in <aws/core/Aws.h> and <aws/s3/S3Client.h>,
+// and the library's public headers stay AWS-free so that
+// its consumers' other translation units do too.
 #include "s3_backup.h"
 
 namespace {
-
-bool g_jsonEmitted = false;
-
+    bool g_jsonEmitted = false;
 }
 
 bool Tool::jsonEmitted()
@@ -57,6 +56,7 @@ std::string Tool::jsonEscape(const std::string& value)
     }
     return escaped;
 }
+
 // The block of backup properties that 'backup' and 'info' both report.
 void Tool::addBackupInfo(JsonObject& json, const Abr::BackupInfo& info)
 {
@@ -80,8 +80,8 @@ void Tool::addBackupInfo(JsonObject& json, const Abr::BackupInfo& info)
 
 // The immutability of the storage folder, which 'info' reports both on its own
 // and next to a backup. A backup keeps no record of its own retention -- it is
-// the folder that holds it immutable -- so this is what the immutability of a
-// stored backup comes down to.
+// the folder that holds it immutable -- so this is what the immutability of
+// a stored backup comes down to.
 void Tool::addFolderInfo(JsonObject& json, const Abr::BackupFolderInfo& folder)
 {
     json.addString("immutability_supported",
@@ -124,8 +124,9 @@ std::string Tool::folderImmutability(const Abr::BackupFolderInfo& folder)
     return std::string(Abr::immutabilityModeName(folder.m_immutabilityCurrent))
         + ", new backups retained for " + std::to_string(folder.m_immutabilityDays) + " day(s)";
 }
+
 // Spotted ahead of the command, so that a failure is still reported as JSON
-// when it happens before -- or instead of -- the command's own option parsing.
+// when it happens before (or instead of) the command's own option parsing.
 bool Tool::jsonRequested(int argc, char* argv[])
 {
     for (int i = 1; i < argc; ++i) {

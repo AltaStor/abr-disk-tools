@@ -2,8 +2,8 @@
 # Copyright © 2026 Norvitex OÜ
 #
 # The CLI every tool shares: the option parser and table, the --json writer,
-# the copy loops, the chain merge, the commands that touch no disk backend, the
-# host shim, and Tool::run.
+# the copy loops, the chain merge, the commands that touch no disk backend,
+# the host shim, and Tool::run.
 #
 # No project() here, and nothing to decide about the toolchain, the build type
 # or the MSVC runtime: the top-level CMakeLists.txt has settled them, and has
@@ -32,8 +32,8 @@ target_include_directories(abr-tools-common PUBLIC "${CMAKE_CURRENT_LIST_DIR}/in
 
 # PUBLIC: Abr:: types are in this library's own headers, so anything that
 # includes them needs backuplib's include directory too -- which is also how
-# each tool's disk_tool.cpp finds "abr_backup.h" by its bare name. The same
-# goes for abr-disk-lib: tool_backup.h takes an IDiskReader and an IDiskWriter,
+# each tool's disk_tool.cpp finds "abr_backup.h" by its bare name.
+# The same goes for abr-disk-lib: tool_backup.h takes an IDiskReader and an IDiskWriter,
 # which are declared in its disk_device.h.
 target_link_libraries(abr-tools-common PUBLIC backuplib abr-disk-lib)
 

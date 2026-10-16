@@ -47,9 +47,9 @@ const Tool::Branding kBranding = {
     "releasing the disk",
 };
 
-// This tool's half of the option table. Adding one of its options means a
-// value here, a row in kToolLongOptions below, and a case in setToolOption --
-// the same three places a shared option needs, over in common/.
+// This tool's half of the option table. Adding one of its options means a value here,
+// a row in kToolLongOptions below, and a case in setToolOption -- the same
+// three places a shared option needs, over in common/.
 enum LongOnlyOption {
     kOptVhdx = Tool::kOptToolFirst,
 };
@@ -154,9 +154,9 @@ bool parseOptions(int argc, char* argv[], Options& options)
         });
 }
 
-// Handed to Tool::Context for the commands common/ runs. Not called
-// parseSharedOptions: that is the library's own entry point, and under the
-// using-directive above two functions of that name would be one overload set.
+// Handed to Tool::Context for the commands common/ runs. Not called parseSharedOptions:
+// that is the library's own entry point, and under the using-directive above two functions
+// of that name would be one overload set.
 //
 // The commands want the shared half only, which a full parse yields as its base -- and the slice is
 // on purpose: nothing in those commands reads this tool's half, but a bad
@@ -173,8 +173,8 @@ bool parseCommonOptions(int argc, char* argv[], Tool::CommonOptions& shared)
     return true;
 }
 
-// --vhdx takes the place of --source or --target; naming both would leave the
-// tool to guess which disk was meant.
+// --vhdx takes the place of --source or --target; naming both would leave the tool
+// to guess which disk was meant.
 bool checkDiskOptions(const std::string& fileOption, const std::string& file, const Options& options)
 {
     if (!file.empty() && !options.vhdx.empty()) {
@@ -314,7 +314,8 @@ int runBackup(const std::string& programName, int argc, char* argv[])
             std::cout << "RCT id:            " << disk.changeTrackingId << "\n";
         }
         std::cout << "Raw data size:     " << info.orig_data_size << " bytes\n"
-                  << "Compression:       " << (info.compression ? ("zstd level " + std::to_string(info.compression)) : std::string("none")) << "\n";
+                  << "Compression:       " << (info.compression ?
+                                    ("zstd level " + std::to_string(info.compression)) : std::string("none")) << "\n";
         if (info.compression && info.orig_data_size > 0) {
             std::cout << "Stored data size:  " << info.stored_data_size << " bytes\n"
                 << "Compression ratio: " << static_cast<double>(info.stored_data_size) / info.orig_data_size << "\n";
@@ -363,10 +364,10 @@ int runRestore(const std::string& programName, int argc, char* argv[])
 
     const Abr::BackupInfo& info = pRestore->getInfo();
 
-    // An incremental holds only what changed since its parent, so restoring it
-    // by itself leaves every other block untouched -- an empty disk if the
-    // target started empty. Applying one onto a target that already carries the
-    // full restore is legitimate, and that is what --force says.
+    // An incremental holds only what changed since its parent, so restoring it by itself leaves
+    // every other block untouched -- an empty disk if the target started empty.
+    // Applying one onto a target that already carries the full restore is legitimate, and that is
+    // what --force says.
     if (info.incremental && !options.force) {
         std::cerr << "Error: '" << options.storage.name
                   << "' is an incremental backup and holds only the blocks that changed since\n"
@@ -423,8 +424,7 @@ int runRestore(const std::string& programName, int argc, char* argv[])
     pRestore->close();
 
     // Released here rather than at the end of the scope, so that a virtual disk
-    // this restore created and did not finish is gone before the failure is
-    // reported.
+    // this restore created and did not finish is gone before the failure is reported.
     target.writer.reset();
 
     if (!ok) {

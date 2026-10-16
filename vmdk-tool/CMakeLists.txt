@@ -4,8 +4,8 @@
 # abr-vmdk-tool: VMware VMDKs, local or on an ESXi host or a vCenter, through
 # the VDDK. A binary and the launcher that points it at a VDDK installation.
 #
-# VDDK_DIR and the RPATH lists used below come from tool.cmake, which the
-# top-level CMakeLists.txt read before the libraries were added.
+# VDDK_DIR and the RPATH lists used below come from tool.cmake, which
+# the top-level CMakeLists.txt read before the libraries were added.
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
@@ -52,19 +52,19 @@ set_target_properties(
         # Left to itself CMake appends the directory of every linked library to
         # the build tree's RPATH, which would put the build machine's VDDK back
         # in -- and ahead of LD_LIBRARY_PATH, so the launcher would appear to
-        # select a bundle while a different one was quietly being used. Building
-        # against the install RPATH keeps the binary developers run identical to
-        # the one they ship.
+        # select a bundle while a different one was quietly being used.
+        # Building against the install RPATH keeps the binary developers run
+        # identical to the one they ship.
         BUILD_WITH_INSTALL_RPATH ON
 )
 
 # Emit DT_RPATH rather than the default DT_RUNPATH. RUNPATH applies only to this
 # binary's direct dependencies, so the VDDK's dlopen'd plugins would not inherit
-# it; RPATH is searched for everything loaded afterwards. That matters because
-# RPATH is also searched ahead of LD_LIBRARY_PATH: the plugins pick up the
-# system libstdc++/libgcc_s from the directories above rather than the bundle's
-# older copies, while still finding the VDDK's own libraries through the
-# LD_LIBRARY_PATH the launcher exports.
+# it; RPATH is searched for everything loaded afterwards.
+# That matters because RPATH is also searched ahead of LD_LIBRARY_PATH: the plugins
+# pick up the system libstdc++/libgcc_s from the directories above rather than
+# the bundle's older copies, while still finding the VDDK's own libraries through
+# the LD_LIBRARY_PATH the launcher exports.
 target_link_options(abr-vmdk-tool PRIVATE "-Wl,--disable-new-dtags")
 
 # The launcher looks for the binary beside itself, so a build tree needs a copy

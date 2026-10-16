@@ -6,19 +6,17 @@
   Application manifest of @ABR_TOOL_NAME@.exe, generated from
   common/windows/tool.manifest.in by abr_add_tool(), once per tool.
 
-  asInvoker: most commands need no rights beyond reaching the repository, so the
-  tool never asks for elevation itself - requireAdministrator would make every
-  start from a non-elevated caller fail with ERROR_ELEVATION_REQUIRED, list and
-  info included. A command that does need an elevated token checks for one and
-  says so.
+  asInvoker: most commands need no rights beyond reaching the repository, so the tool
+  never asks for elevation itself - requireAdministrator would make every start from
+  a non-elevated caller fail with ERROR_ELEVATION_REQUIRED, list and info included.
+  A command that does need an elevated token checks for one and says so.
 
   activeCodePage UTF-8 (Windows 10 1903 and later): the storage library opens its
-  files by narrow paths, which Windows reads in the process's ANSI code page. The
-  tool's strings are UTF-8 throughout, so this makes the two agree, and a
-  repository folder or backup name outside the local code page still works.
+  files by narrow paths, which Windows reads in the process's ANSI code page.
+  The tool's strings are UTF-8 throughout, so this makes the two agree, and
+  a repository folder or backup name outside the local code page still works.
 
-  longPathAware: paths past MAX_PATH work wherever the system has long paths
-  enabled.
+  longPathAware: paths past MAX_PATH work wherever the system has long paths enabled.
 -->
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">

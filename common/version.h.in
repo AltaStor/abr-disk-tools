@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright © 2026 Norvitex OÜ
 //
-// Version of the tools, one for all of them: they are built from one tree and
-// released together. Generated from common/version.h.in by CMake, from the
-// ABR_VERSION and ABR_VERSION_STRING the build was configured with -- see
+// Version of the tools, one for all of them: they are built from one tree
+// and released together. Generated from common/version.h.in by CMake, from
+// the ABR_VERSION and ABR_VERSION_STRING the build was configured with -- see
 // cmake/version.cmake.
 //
 #pragma once

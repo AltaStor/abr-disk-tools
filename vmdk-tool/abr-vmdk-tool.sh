@@ -7,15 +7,15 @@
 # The binary needs two things from its surroundings that it cannot work out on
 # its own: a library search path that reaches the VMware VDDK bundle (the tool
 # dlopens libvixDiskLib by name, and the VDDK then dlopens its transport plugins
-# out of the same directory) and a writable TMPDIR for those plugins. This
-# script supplies both and then gets out of the way.
+# out of the same directory) and a writable TMPDIR for those plugins.
+# This script supplies both and then gets out of the way.
 #
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# The env overrides below are authoritative rather than merely preferred: an
-# override that does not resolve is a mistake worth reporting, not a reason to
+# The env overrides below are authoritative rather than merely preferred:
+# an override that does not resolve is a mistake worth reporting, not a reason to
 # quietly run some other copy.
 
 # Installed layout puts the binary beside this script; a dev tree leaves it in
@@ -44,8 +44,8 @@ is_vddk_root() {
   [[ -d "$1" && -f "$1/lib64/libvixDiskLib.so" ]]
 }
 
-# ../vddk matches the installed tree; ../../vddk a build directory inside the
-# repository checkout, where the binary lands in <build>/bin.
+# ../vddk matches the installed tree; ../../vddk a build directory inside
+# the repository checkout, where the binary lands in <build>/bin.
 find_vddk_root() {
   local candidate=""
   if [[ -n "${ABR_VMDK_TOOL_VDDK_DIR:-}" ]]; then
@@ -101,13 +101,13 @@ VDDK_ROOT="$(find_vddk_root)" || {
 #      plugins (libdiskLibPlugin.so and the dozen libraries behind it) live
 #      nowhere else, and LD_LIBRARY_PATH is the only search path that reaches
 #      them -- they carry no RPATH of their own.
-#   2. a lib/ directory vendored beside the binary by the package build, if the
-#      package build put one there.
+#   2. a lib/ directory vendored beside the binary by the package build,
+#      if the package build put one there.
 #   3. /usr/local/lib, where libcrc32c.so.1 is installed.
 #
 # The bundle leading the path also puts its older libstdc++/libcrypto/libcurl
-# ahead of the system copies, which would break the binary -- except that the
-# binary carries a DT_RPATH naming the compiler's runtime directories, and
+# ahead of the system copies, which would break the binary -- except that
+# the binary carries a DT_RPATH naming the compiler's runtime directories, and
 # RPATH is searched before LD_LIBRARY_PATH for everything the process loads.
 LIB_PATH=""
 for dir in "${VDDK_ROOT:+${VDDK_ROOT}/lib64}" "${SCRIPT_DIR}/lib" /usr/local/lib; do

@@ -21,8 +21,8 @@ namespace Plat
     // leaves work behind that only an unwinding loop puts right: a half
     // written restore target, a virtual disk still attached and its volumes
     // offline, a VM with its methods disabled. A second interrupt does fall
-    // through to the host's default handling, so a run wedged inside a
-    // hypervisor call can still be killed.
+    // through to the host's default handling, so a run wedged inside
+    // a hypervisor call can still be killed.
     //
     void installInterruptHandler();
 
@@ -34,8 +34,8 @@ namespace Plat
     // The process's own arguments as UTF-8, argv[0] first.
     //
     // On POSIX these are main()'s, unchanged. On Windows they are read from
-    // the wide command line instead and the ones passed in are ignored: the
-    // arguments main() is handed have been through the ANSI code page, which
+    // the wide command line instead and the ones passed in are ignored:
+    // the arguments main() is handed have been through the ANSI code page, which
     // cannot hold every path or VM name. Both tools therefore pass main()'s
     // along and let this decide, so that main() reads the same in both.
     std::vector<std::string> arguments(int argc, char* argv[]);

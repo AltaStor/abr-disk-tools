@@ -19,24 +19,22 @@
 #include "tool_backup.h"
 #include "tool_json.h"
 
-// Abr::AwsSdkGuard and Abr::immutabilityModeName live here. Kept out of the
-// public headers; see tool_backup.cpp.
+// Abr::AwsSdkGuard and Abr::immutabilityModeName live here.
+// Kept out of the public headers; see tool_backup.cpp.
 #include "s3_backup.h"
 
 namespace {
-
-// Installed by Tool::run for the length of its body. A pointer rather than a
-// value because there is nothing sensible to default-construct it to: a
-// command reached without run() is a programming error, not a state to carry.
-const Tool::Context* g_pContext = nullptr;
-
+    // Installed by Tool::run for the length of its body.
+    // A pointer rather than a value because there is nothing sensible to default-construct it to:
+    // a command reached without run() is a programming error, not a state to carry.
+    const Tool::Context* g_pContext = nullptr;
 }
 
 const Tool::Context& Tool::context()
 {
     if (g_pContext == nullptr) {
-        // Not a diagnostic the user can act on, so it does not go through the
-        // "Error: " convention: it says which contract was broken and stops.
+        // Not a diagnostic the user can act on, so it does not go through
+        // the "Error: " convention: it says which contract was broken and stops.
         std::cerr << "abr-disk-tools: a command was run without Tool::run(), "
                      "which is what installs its context\n";
         std::abort();
@@ -83,9 +81,9 @@ int Tool::runCopy(const std::string& programName, int argc, char* argv[])
         return 1;
     }
 
-    // Writing the new backup over one the chain is being read from would lose
-    // both. The endpoint is part of what tells two storages apart, since the
-    // same bucket name at two S3 services is two different buckets.
+    // Writing the new backup over one the chain is being read from would lose both.
+    // The endpoint is part of what tells two storages apart, since the same bucket
+    // name at two S3 services is two different buckets.
     const bool sameStorage = source.mode == options.storage.mode
         && source.folder == options.storage.folder && source.path == options.storage.path
         && source.endpoint == options.storage.endpoint;
@@ -201,8 +199,7 @@ int Tool::runCopy(const std::string& programName, int argc, char* argv[])
 
         std::cout << "Source:            " << storageLocation(source) << " (" << names << ")\n"
                   << "Backup:            " << backupLocation(options.storage) << "\n"
-                  << "Kind:              full, merged from " << chain.names.size()
-                  << " backup(s)\n"
+                  << "Kind:              full, merged from " << chain.names.size() << " backup(s)\n"
                   << "Raw data size:     " << info.orig_data_size << " bytes\n"
                   << "Compression:       "
                   << (info.compression ? ("zstd level " + std::to_string(info.compression))
@@ -395,8 +392,8 @@ int Tool::runVerify(const std::string& programName, int argc, char* argv[])
         total += range.length;
     }
 
-    // Every range is checked rather than stopping at the first bad one, so a
-    // single run reports the full extent of the damage.
+    // Every range is checked rather than stopping at the first bad one,
+    // so a single run reports the full extent of the damage.
     ProgressPrinter progress(total, options.json);
     std::vector<char> tempBuf;
     uint32_t corrupt = 0;
@@ -688,8 +685,8 @@ int Tool::runMetaLoad(const std::string& programName, int argc, char* argv[])
         return 0;
     }
 
-    // Not !flush(): writing an empty metadata blob leaves failbit set (nothing
-    // was inserted) even though the file is exactly right.
+    // Not !flush(): writing an empty metadata blob leaves failbit set
+    // (nothing was inserted) even though the file is exactly right.
     file.flush();
     if (file.bad()) {
         std::cerr << "Error: failed to write metadata to '" << options.target << "'\n";
@@ -707,14 +704,15 @@ int Tool::runMetaLoad(const std::string& programName, int argc, char* argv[])
     }
     return 0;
 }
+
 int Tool::run(int argc, char* argv[], const Context& context, const Dispatch& dispatch)
 {
     Plat::StdioSetup console;
+    std::vector<std::string> arguments = Plat::arguments(argc, argv);
+    std::vector<char*> argvStorage;
 
     g_pContext = &context;
 
-    std::vector<std::string> arguments = Plat::arguments(argc, argv);
-    std::vector<char*> argvStorage;
     for (auto& argument : arguments) {
         argvStorage.push_back(argument.data());
     }
@@ -746,6 +744,7 @@ int Tool::run(int argc, char* argv[], const Context& context, const Dispatch& di
         printMainHelp(programName, context.branding);
         return 0;
     }
+
     if (command == "-v" || command == "--version") {
         if (json) {
             JsonObject result("version", "ok");
@@ -767,7 +766,6 @@ int Tool::run(int argc, char* argv[], const Context& context, const Dispatch& di
     // inside each command handler treats argv[1] ("<command>") as its name.
     int cmdArgc = argc - 1;
     char** cmdArgv = argv + 1;
-
     int result = 1;
 
     // Nothing below is expected to throw, but the storage libraries may; one

@@ -40,8 +40,8 @@ set(VDDK_RPATH "")
 set(VDDK_RPATH_REJECTED "")
 
 foreach(_abr_vmdk_tool_link_dir IN LISTS CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES)
-    # Normalized first so that a "." or ".." component cannot walk out of a
-    # prefix that the untouched string appears to sit inside.
+    # Normalized first so that a "." or ".." component cannot walk out of
+    # a prefix that the untouched string appears to sit inside.
     cmake_path(SET _abr_vmdk_tool_normalized NORMALIZE "${_abr_vmdk_tool_link_dir}")
 
     set(_abr_vmdk_tool_is_system FALSE)
@@ -81,9 +81,9 @@ set(VDDK_INSTALL_RPATH "${VDDK_RPATH}" CACHE STRING "RPATH to embed in the insta
 message(STATUS "Selected VDDK_DIR: ${VDDK_DIR}")
 
 # Only the headers are needed to build, and it is abr-disk-lib that compiles
-# against them: the library itself is bound at runtime, from wherever the
-# launcher points the loader, so the machine that compiles the tool does not
-# have to be the one that has the bundle installed.
+# against them: the library itself is bound at runtime, from wherever the launcher
+# points the loader, so the machine that compiles the tool does not have to be
+# the one that has the bundle installed.
 if(NOT EXISTS "${VDDK_INCLUDE_DIR}/vixDiskLib.h")
     message(FATAL_ERROR
         "Required VDDK headers not found: ${VDDK_INCLUDE_DIR}/vixDiskLib.h\n"

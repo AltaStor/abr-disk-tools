@@ -20,13 +20,12 @@ namespace Tool
         // What --version reports.
         const char* version;
 
-        // What the command list calls the thing being backed up: "virtual
-        // disk" for abr-vhdx-tool, "VMDK" for abr-vmdk-tool.
+        // What the command list calls the thing being backed up:
+        // "virtual disk", "VMDK" and so on.
         const char* diskNoun;
 
         // What interrupted() says is being released, which differs because
-        // what each tool holds does: a VM with its methods disabled is
-        // abr-vmdk-tool's problem alone.
+        // what each tool holds does.
         const char* interruptNote;
     };
 

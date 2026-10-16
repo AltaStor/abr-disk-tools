@@ -46,6 +46,7 @@ void Tool::printStorageOptions()
               << "      --path-style        Use path-style S3 addressing\n"
               << "      --no-verify-tls     Disable TLS verification for S3\n";
 }
+
 void Tool::printSourceStorageOptions()
 {
     std::cout << "Source storage options:\n"
@@ -64,6 +65,7 @@ void Tool::printSourceStorageOptions()
               << "      --source-path-style        Use path-style S3 addressing\n"
               << "      --source-no-verify-tls     Disable TLS verification for S3\n";
 }
+
 void Tool::printCopyHelp(const std::string& programName)
 {
     std::cout << "Usage: " << programName << " copy [options]\n\n"
@@ -92,6 +94,7 @@ void Tool::printCopyHelp(const std::string& programName)
     std::cout << "\n";
     printSourceStorageOptions();
 }
+
 void Tool::printListHelp(const std::string& programName)
 {
     std::cout << "Usage: " << programName << " list [options]\n\n"
@@ -101,6 +104,7 @@ void Tool::printListHelp(const std::string& programName)
               << "\n";
     printStorageOptions();
 }
+
 void Tool::printInfoHelp(const std::string& programName)
 {
     std::cout << "Usage: " << programName << " info [options]\n\n"
@@ -111,6 +115,7 @@ void Tool::printInfoHelp(const std::string& programName)
               << "                          own info is reported (optional)\n\n";
     printStorageOptions();
 }
+
 void Tool::printVerifyHelp(const std::string& programName)
 {
     std::cout << "Usage: " << programName << " verify [options]\n\n"
@@ -123,6 +128,7 @@ void Tool::printVerifyHelp(const std::string& programName)
               << "                          without decrypting (optional)\n\n";
     printStorageOptions();
 }
+
 void Tool::printRemoveHelp(const std::string& programName)
 {
     std::cout << "Usage: " << programName << " remove [options]\n\n"
@@ -133,6 +139,7 @@ void Tool::printRemoveHelp(const std::string& programName)
               << "  -f, --force             Remove without asking for confirmation\n\n";
     printStorageOptions();
 }
+
 void Tool::printRetentionHelp(const std::string& programName)
 {
     std::cout << "Usage: " << programName << " retention [options]\n\n"
@@ -152,6 +159,7 @@ void Tool::printRetentionHelp(const std::string& programName)
               << "      --retention DAYS    How long to hold it from now, in days (required)\n\n";
     printStorageOptions();
 }
+
 void Tool::printMetaSaveHelp(const std::string& programName)
 {
     std::cout << "Usage: " << programName << " meta_save [options]\n\n"
@@ -163,6 +171,7 @@ void Tool::printMetaSaveHelp(const std::string& programName)
               << "                          reads standard input)\n\n";
     printStorageOptions();
 }
+
 void Tool::printMetaLoadHelp(const std::string& programName)
 {
     std::cout << "Usage: " << programName << " meta_load [options]\n\n"

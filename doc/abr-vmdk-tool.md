@@ -175,7 +175,8 @@ abr-vmdk-tool.sh backup [options]
 | `--change-id` | `ID` | The change id an incremental backup is taken against (the CBT id of the point the previous backup was taken from). Only meaningful — and required — with `--type incremental`. |
 | `--query-chunk` | `N` | Allocated-block query granularity, in sectors. Tunes how VDDK batches its `QueryAllocatedBlocks` calls. Default: `2048`. |
 | `--immutable` | `none` \| `governance` \| `compliance` | Hold the backup under S3 Object Lock so it cannot be deleted or overwritten before its retention expires. `governance` allows a user with special permissions to remove the lock; `compliance` allows no one, including the storage account root, to shorten or remove it. S3 storage only. |
-| `--retention` | `DAYS` | How long `--immutable` holds the backup, in days. Required together with `--immutable` — one without the other is an error, since a mode with no period holds nothing and a period with no mode enforces nothing. |
+| `--retention` | `DAYS` | How long `--immutable` holds the backup, in days. `--immutable` requires either this or `--retention-till`, and neither is accepted without it, since a mode with no period holds nothing and a period with no mode enforces nothing. |
+| `--retention-till` | `DATE` | Hold the backup until this moment instead of for a number of days: a date and time in UTC, `YYYY-MM-DDTHH:MM:SSZ` (a space may take the place of the `T`, and the `Z` may be left out). Seconds are required, and a moment already passed is refused. Mutually exclusive with `--retention`. |
 
 Plus the [storage options](#storage-options) and, when backing up a VMDK, the
 [VMDK options](#vmdk-vddk-options).
@@ -280,6 +281,7 @@ abr-vmdk-tool.sh copy [options]
 | `-c`, `--compression` | `0`–`22` | Compression level for the new backup. Default: `3`. |
 | `--immutable` | `none` \| `governance` \| `compliance` | Hold the new backup under S3 Object Lock, as for [backup](#backup). |
 | `--retention` | `DAYS` | How long `--immutable` holds it, in days. |
+| `--retention-till` | `DATE` | Hold it until this moment in UTC instead, as for [backup](#backup). Mutually exclusive with `--retention`. |
 
 Plus the [storage options](#storage-options) for the destination, and the
 source storage options below for the chain.
@@ -513,14 +515,17 @@ abr-vmdk-tool.sh retention [options]
 | --- | --- | --- |
 | `-n`, `--name` | `NAME` | Backup name. **Required.** |
 | `--immutable` | `governance` \| `compliance` | Mode to hold the backup in. **Required.** Unlike `backup --immutable`, `none` is not accepted here: Object Lock has no way to release an object that is already held. |
-| `--retention` | `DAYS` | How long to hold the backup **from now**, in days. **Required.** |
+| `--retention` | `DAYS` | How long to hold the backup **from now**, in days. This or `--retention-till` is **required**. |
+| `--retention-till` | `DATE` | Hold the backup until this moment, in UTC as `YYYY-MM-DDTHH:MM:SSZ`, as for [backup](#backup). Mutually exclusive with `--retention`. |
 
 Plus the [storage options](#storage-options).
 
 The period is counted from the moment the command runs, so it states what the
 backup has left rather than what it was originally given. Extending a backup
 created with `--retention 10` four days ago to `--retention 30` leaves it held
-for 30 more days, not 26.
+for 30 more days, not 26. `--retention-till` names the moment the hold ends
+instead, so the same command run twice, or run for every disk of a VM, puts the
+same date on all of them.
 
 All three objects a backup is made of (`.abrd`, `.abri` and `.abrm`) are put
 under the same retention, since a backup is only held as firmly as its least
@@ -531,6 +536,10 @@ protected object. The metadata blob is optional, so a backup that never had a
 $ abr-vmdk-tool.sh retention --mode s3 --folder backups --name web01-sda \
       --immutable compliance --retention 200
 Backup 'backups/web01-sda' is now held in compliance mode, retained for 200 day(s)
+
+$ abr-vmdk-tool.sh retention --mode s3 --folder backups --name web01-sda \
+      --immutable compliance --retention-till 2027-06-30T00:00:00Z
+Backup 'backups/web01-sda' is now held in compliance mode, retained until 2027-06-30T00:00:00Z
 ```
 
 **What the storage will accept is its call, not the tool's.** The tool checks
@@ -713,6 +722,10 @@ $ abr-vmdk-tool.sh retention --json --mode s3 --folder backups --name web01-sda 
   "retention_days": 200
 }
 ```
+
+A hold given with `--retention-till` is reported as a `retention_till` string,
+`YYYY-MM-DDTHH:MM:SSZ`, in place of `retention_days`. `backup` and `copy` report
+the hold they were asked for the same way.
 
 `copy` reports the chain it merged alongside the properties of the backup it
 wrote:

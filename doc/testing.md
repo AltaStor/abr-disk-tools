@@ -350,7 +350,7 @@ The matrix that matters:
 - every help and version path: no arguments, `-h`, `--help`, `-v`,
   `--version`, `--version --json`, and `<cmd> --help` for all ten commands;
 - every option error, with and without `--json`: an unknown option, an
-  ambiguous prefix, a bad `-c`, `--type`, `--immutable`, `--retention`,
+  ambiguous prefix, a bad `-c`, `--type`, `--immutable`, `--retention`, `--retention-till`,
   `--source-names`, a missing required option for each command, and a stray
   non-option argument;
 - a round trip against a `file` repository: back up a fixed input at a couple of

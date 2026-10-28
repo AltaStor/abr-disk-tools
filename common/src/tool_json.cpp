@@ -125,6 +125,36 @@ std::string Tool::folderImmutability(const Abr::BackupFolderInfo& folder)
         + ", new backups retained for " + std::to_string(folder.m_immutabilityDays) + " day(s)";
 }
 
+void Tool::addRequestedImmutability(JsonObject& json, const CommonOptions& options)
+{
+    json.addString("immutability", Abr::immutabilityModeName(options.immutability));
+
+    if (options.immutability == Abr::ImmutabilityMode::NONE) {
+        return;
+    }
+    if (options.retentionTill != 0) {
+        json.addString("retention_till", formatRetentionTill(options.retentionTill));
+    } else {
+        json.addNumber("retention_days", static_cast<uint64_t>(options.retentionDays));
+    }
+}
+
+std::string Tool::requestedImmutability(const CommonOptions& options)
+{
+    if (options.immutability == Abr::ImmutabilityMode::NONE) {
+        return "none";
+    }
+    return std::string(Abr::immutabilityModeName(options.immutability)) + ", " + requestedRetention(options);
+}
+
+std::string Tool::requestedRetention(const CommonOptions& options)
+{
+    if (options.retentionTill != 0) {
+        return "retained until " + formatRetentionTill(options.retentionTill);
+    }
+    return "retained for " + std::to_string(options.retentionDays) + " day(s)";
+}
+
 // Spotted ahead of the command, so that a failure is still reported as JSON
 // when it happens before (or instead of) the command's own option parsing.
 bool Tool::jsonRequested(int argc, char* argv[])

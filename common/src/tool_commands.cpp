@@ -141,6 +141,7 @@ int Tool::runCopy(const std::string& programName, int argc, char* argv[])
     info.incremental = 0;
     info.m_immutabilityMode = options.immutability;
     info.m_immutabilityDays = options.retentionDays;
+    info.m_immutabilityUntil = options.retentionTill;
 
     // A manager of its own even when the two sides name the same storage: what
     // makes them the same here is the location, and the credentials reaching it
@@ -186,10 +187,7 @@ int Tool::runCopy(const std::string& programName, int argc, char* argv[])
         json.addString("backup", backupLocation(options.storage));
         json.addString("name", options.storage.name);
         json.addString("kind", "full");
-        json.addString("immutability", Abr::immutabilityModeName(options.immutability));
-        if (options.immutability != Abr::ImmutabilityMode::NONE) {
-            json.addNumber("retention_days", static_cast<uint64_t>(options.retentionDays));
-        }
+        addRequestedImmutability(json, options);
         addBackupInfo(json, info);
     } else {
         std::string names;
@@ -211,13 +209,7 @@ int Tool::runCopy(const std::string& programName, int argc, char* argv[])
                       << static_cast<double>(info.stored_data_size) / info.orig_data_size << "\n";
         }
         std::cout << "Encryption:        " << (info.encryption ? "AES-256-GCM" : "none") << "\n"
-                  << "Immutability:      "
-                  << (options.immutability == Abr::ImmutabilityMode::NONE
-                          ? std::string("none")
-                          : std::string(Abr::immutabilityModeName(options.immutability))
-                                + ", retained for " + std::to_string(options.retentionDays)
-                                + " day(s)")
-                  << "\n";
+                  << "Immutability:      " << requestedImmutability(options) << "\n";
     }
     return 0;
 }
@@ -543,8 +535,12 @@ int Tool::runRetention(const std::string& programName, int argc, char* argv[])
         return 1;
     }
 
-    if (!pManager->updateRetention(options.storage.path, options.storage.name,
-                                   options.immutability, options.retentionDays)) {
+    const bool updated = options.retentionTill != 0
+        ? pManager->updateRetentionUntil(options.storage.path, options.storage.name,
+                                         options.immutability, options.retentionTill)
+        : pManager->updateRetention(options.storage.path, options.storage.name,
+                                    options.immutability, options.retentionDays);
+    if (!updated) {
         std::cerr << "Error: failed to update the retention of backup '"
                   << options.storage.name << "'\n";
         return 1;
@@ -554,12 +550,11 @@ int Tool::runRetention(const std::string& programName, int argc, char* argv[])
         JsonObject json("retention", "ok");
         json.addString("backup", backupLocation(options.storage));
         json.addString("name", options.storage.name);
-        json.addString("immutability", Abr::immutabilityModeName(options.immutability));
-        json.addNumber("retention_days", static_cast<uint64_t>(options.retentionDays));
+        addRequestedImmutability(json, options);
     } else {
         std::cout << "Backup '" << backupLocation(options.storage) << "' is now held in "
-                  << Abr::immutabilityModeName(options.immutability) << " mode, retained for "
-                  << options.retentionDays << " day(s)\n";
+                  << Abr::immutabilityModeName(options.immutability) << " mode, "
+                  << requestedRetention(options) << "\n";
     }
     return 0;
 }

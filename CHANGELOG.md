@@ -12,6 +12,14 @@ On `main`, not in any release yet.
 
 ### Added
 
+- `--retention-till DATE`, in `backup`, `copy` and `retention` of both tools:
+  hold a backup under S3 Object Lock until a moment given in UTC, as
+  `YYYY-MM-DDTHH:MM:SSZ`, rather than for `--retention` days counted from the
+  moment the backup is created. Every disk of a VM can so be held until the
+  same date, however long each one takes to back up. The two options are
+  mutually exclusive; a date already passed is refused. Under `--json` the hold
+  is reported as `retention_till` in place of `retention_days`. `--ret` is no
+  longer an unambiguous prefix of `--retention`.
 - `--stdin-keys`, in both tools: read the secrets from standard input as
   `name=value` lines rather than from the command line, where every process on
   the host can read them. It takes `key`, `secret-key`, `source-key` and

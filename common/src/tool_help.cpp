@@ -89,7 +89,10 @@ void Tool::printCopyHelp(const std::string& programName)
               << " for the new backup\n"
               << "      --immutable MODE    Hold the new backup in 'governance' or\n"
               << "                          'compliance' mode (S3 only)\n"
-              << "      --retention DAYS    How long --immutable holds it, in days\n\n";
+              << "      --retention DAYS    How long --immutable holds it, in days\n"
+              << "      --retention-till DATE\n"
+              << "                          Hold it until DATE instead, in UTC as\n"
+              << "                          YYYY-MM-DDTHH:MM:SSZ; one of the two is required\n\n";
     printStorageOptions();
     std::cout << "\n";
     printSourceStorageOptions();
@@ -145,7 +148,8 @@ void Tool::printRetentionHelp(const std::string& programName)
     std::cout << "Usage: " << programName << " retention [options]\n\n"
               << "Changes the immutability a stored backup is already held under. The\n"
               << "period is counted from now, so it states what the backup has left rather\n"
-              << "than what it was originally given.\n\n"
+              << "than what it was originally given. --retention-till names the moment the\n"
+              << "hold ends instead.\n\n"
               << "What can be changed is the storage's call, not this tool's: a compliance\n"
               << "hold may only ever be extended, and a governance one cannot be shortened\n"
               << "without the permission to bypass it. A refusal is reported as it was\n"
@@ -156,7 +160,10 @@ void Tool::printRetentionHelp(const std::string& programName)
               << "  -n, --name NAME         Backup name (required)\n"
               << "      --immutable MODE    Hold the backup in 'governance' or 'compliance'\n"
               << "                          mode (required, S3 only)\n"
-              << "      --retention DAYS    How long to hold it from now, in days (required)\n\n";
+              << "      --retention DAYS    How long to hold it from now, in days\n"
+              << "      --retention-till DATE\n"
+              << "                          Hold it until DATE instead, in UTC as\n"
+              << "                          YYYY-MM-DDTHH:MM:SSZ; one of the two is required\n\n";
     printStorageOptions();
 }
 

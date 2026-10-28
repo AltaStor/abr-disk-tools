@@ -230,7 +230,8 @@ abr-vhdx-tool.exe backup [options]
 | `--type` | `full` \| `incremental` | `full` (default) copies the whole disk. `incremental` copies only the blocks changed since `--change-id`; it requires `--vhdx`, since it relies on Hyper-V resilient change tracking (RCT) — there is no equivalent for a plain file, so this is rejected rather than silently falling back to a full copy. |
 | `--change-id` | `ID` | The RCT id an incremental backup is taken against: the `rct_id` the previous backup of the same disk reported. Only meaningful — and required — with `--type incremental`. |
 | `--immutable` | `none` \| `governance` \| `compliance` | Hold the backup under S3 Object Lock so it cannot be deleted or overwritten before its retention expires. `governance` allows a user with special permissions to remove the lock; `compliance` allows no one, including the storage account root, to shorten or remove it. S3 storage only. |
-| `--retention` | `DAYS` | How long `--immutable` holds the backup, in days. Required together with `--immutable` — one without the other is an error, since a mode with no period holds nothing and a period with no mode enforces nothing. |
+| `--retention` | `DAYS` | How long `--immutable` holds the backup, in days. `--immutable` requires either this or `--retention-till`, and neither is accepted without it, since a mode with no period holds nothing and a period with no mode enforces nothing. |
+| `--retention-till` | `DATE` | Hold the backup until this moment instead of for a number of days: a date and time in UTC, `YYYY-MM-DDTHH:MM:SSZ` (a space may take the place of the `T`, and the `Z` may be left out). Seconds are required, and a moment already passed is refused. Mutually exclusive with `--retention`. |
 
 Plus the [storage options](#storage-options) and, when backing up a virtual
 disk, the [virtual disk options](#virtual-disk-hyper-v-options).
@@ -360,6 +361,7 @@ abr-vhdx-tool.exe copy [options]
 | `-c`, `--compression` | `0`–`22` | Compression level for the new backup. |
 | `--immutable` | `none` \| `governance` \| `compliance` | Hold the new backup under S3 Object Lock, as for [backup](#backup). |
 | `--retention` | `DAYS` | How long `--immutable` holds it, in days. |
+| `--retention-till` | `DATE` | Hold it until this moment in UTC instead, as for [backup](#backup). Mutually exclusive with `--retention`. |
 
 Plus the [storage options](#storage-options) for the destination, and the
 source storage options below for the chain.
@@ -566,13 +568,15 @@ abr-vhdx-tool.exe retention [options]
 | --- | --- | --- |
 | `-n`, `--name` | `NAME` | Backup name. **Required.** |
 | `--immutable` | `governance` \| `compliance` | Mode to hold the backup in. **Required.** Unlike `backup --immutable`, `none` is not accepted here: Object Lock has no way to release an object that is already held. |
-| `--retention` | `DAYS` | How long to hold the backup **from now**, in days. **Required.** |
+| `--retention` | `DAYS` | How long to hold the backup **from now**, in days. This or `--retention-till` is **required**. |
+| `--retention-till` | `DATE` | Hold the backup until this moment, in UTC as `YYYY-MM-DDTHH:MM:SSZ`, as for [backup](#backup). Mutually exclusive with `--retention`. |
 
 Plus the [storage options](#storage-options).
 
 The period is counted from the moment the command runs, so it states what the
-backup has left rather than what it was originally given. All three objects a
-backup is made of (`.abrd`, `.abri` and `.abrm`) are put under the same
+backup has left rather than what it was originally given. `--retention-till`
+names the moment the hold ends instead, so every disk of a VM can be given the
+same date. All three objects a backup is made of (`.abrd`, `.abri` and `.abrm`) are put under the same
 retention.
 
 **What the storage will accept is its call, not the tool's.** Extending a hold
@@ -588,6 +592,10 @@ printing the storage's own error for each object it could not update.
     --immutable compliance --retention 200
 Backup 'backups/web01-disk0' is now held in compliance mode, retained for 200 day(s)
 ```
+
+Under `--json` a hold given with `--retention-till` is reported as a
+`retention_till` string, `YYYY-MM-DDTHH:MM:SSZ`, in place of `retention_days`,
+here and in the results of `backup` and `copy`.
 
 ### meta_save
 

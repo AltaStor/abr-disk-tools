@@ -41,6 +41,7 @@ namespace Tool
         kOptNoVerifyTls,
         kOptImmutable,
         kOptRetention,
+        kOptRetentionTill,
         kOptChangeId,
         kOptType,
         kOptJson,
@@ -130,6 +131,10 @@ namespace Tool
         Abr::ImmutabilityMode immutability = Abr::ImmutabilityMode::NONE;
         int retentionDays = 0;
 
+        // The moment the hold ends, in seconds since the Unix epoch (UTC), when it is named outright
+        // instead of a period. One of the two at most, and 0 means not given.
+        int64_t retentionTill = 0;
+
         bool force = false;
         bool help = false;
         bool json = false;
@@ -217,6 +222,14 @@ namespace Tool
 
     bool parseImmutabilityMode(const std::string& text, Abr::ImmutabilityMode& mode);
     bool parseRetentionDays(const std::string& text, int& days);
+
+    // What --retention-till takes: "YYYY-MM-DDTHH:MM:SS" in UTC, with a space allowed in place of
+    // the T and an optional trailing Z, and nothing else. A moment already reached is refused here,
+    // since it would hold nothing.
+    bool parseRetentionTill(const std::string& text, int64_t& seconds);
+
+    // The same moment written back as "YYYY-MM-DDTHH:MM:SSZ", which is how every output names it.
+    std::string formatRetentionTill(int64_t seconds);
     bool parseCompression(const std::string& text, int& level);
     bool parseBackupNames(const std::string& text, std::vector<std::string>& names);
 

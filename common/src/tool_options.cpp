@@ -5,6 +5,8 @@
 //
 #include "tool_options.h"
 
+#include <chrono>
+#include <cstdio>
 #include <iostream>
 #include <sstream>
 
@@ -31,6 +33,7 @@ const Cli::LongOption Tool::kHeadLongOptions[] = {
     {"no-verify-tls", Cli::Argument::None,     kOptNoVerifyTls},
     {"immutable",     Cli::Argument::Required, kOptImmutable},
     {"retention",     Cli::Argument::Required, kOptRetention},
+    {"retention-till", Cli::Argument::Required, kOptRetentionTill},
 
     {"change-id",     Cli::Argument::Required, kOptChangeId},
     {"type",          Cli::Argument::Required, kOptType},
@@ -116,6 +119,11 @@ bool Tool::parseSharedOptions(int argc, char* argv[], const Cli::LongOption* lon
                 break;
             case kOptRetention:
                 if (!parseRetentionDays(arg, options.retentionDays)) {
+                    return false;
+                }
+                break;
+            case kOptRetentionTill:
+                if (!parseRetentionTill(arg, options.retentionTill)) {
                     return false;
                 }
                 break;
@@ -287,6 +295,77 @@ bool Tool::parseRetentionDays(const std::string& text, int& days)
     return true;
 }
 
+// The fields are checked by position, so that "2026-1-5" or "2026-12-31T23:59" is refused
+// rather than read as something close to it, and no std::stoi can throw out of the parser.
+// The calendar does the rest: February 30 is not a date, and is refused as well.
+bool Tool::parseRetentionTill(const std::string& text, int64_t& seconds)
+{
+    using namespace std::chrono;
+
+    seconds = 0;
+
+    std::string value = text;
+    if (!value.empty() && value.back() == 'Z') {
+        value.pop_back();
+    }
+
+    bool shaped = value.size() == 19;
+    for (size_t i = 0; shaped && i < value.size(); ++i) {
+        const char c = value[i];
+        switch (i) {
+            case 4: case 7: shaped = c == '-'; break;
+            case 10: shaped = c == 'T' || c == ' '; break;
+            case 13: case 16: shaped = c == ':'; break;
+            default: shaped = c >= '0' && c <= '9'; break;
+        }
+    }
+
+    if (shaped) {
+        auto field = [&value](size_t pos, size_t length) { return std::stoi(value.substr(pos, length)); };
+
+        const year_month_day date{year{field(0, 4)}, month{static_cast<unsigned>(field(5, 2))},
+                                  day{static_cast<unsigned>(field(8, 2))}};
+        const int hour = field(11, 2);
+        const int minute = field(14, 2);
+        const int second = field(17, 2);
+
+        shaped = date.ok() && hour < 24 && minute < 60 && second < 60;
+        if (shaped) {
+            seconds = sys_seconds{sys_days{date}}.time_since_epoch().count() + hour * 3600 + minute * 60 + second;
+        }
+    }
+
+    if (!shaped) {
+        std::cerr << "Error: --retention-till must be a date and time in UTC, as YYYY-MM-DDTHH:MM:SSZ\n";
+        return false;
+    }
+
+    const int64_t now = duration_cast<std::chrono::seconds>(system_clock::now().time_since_epoch()).count();
+    if (seconds <= now) {
+        std::cerr << "Error: --retention-till " << formatRetentionTill(seconds) << " has already passed\n";
+        seconds = 0;
+        return false;
+    }
+    return true;
+}
+
+std::string Tool::formatRetentionTill(int64_t seconds)
+{
+    using namespace std::chrono;
+
+    const sys_seconds moment{std::chrono::seconds{seconds}};
+    const sys_days date = floor<days>(moment);
+    const year_month_day ymd{date};
+    const hh_mm_ss<std::chrono::seconds> time{moment - date};
+
+    char text[32];
+    std::snprintf(text, sizeof(text), "%04d-%02u-%02uT%02d:%02d:%02dZ", static_cast<int>(ymd.year()),
+                  static_cast<unsigned>(ymd.month()), static_cast<unsigned>(ymd.day()),
+                  static_cast<int>(time.hours().count()), static_cast<int>(time.minutes().count()),
+                  static_cast<int>(time.seconds().count()));
+    return text;
+}
+
 // A compression level. Digits only, so that "3x" or "-1" is refused rather
 // than read as 3 or wrapped round -- and so that no std::stoi throws out of
 // the parser and takes the process down with it.
@@ -381,13 +460,21 @@ bool Tool::checkBackupType(const CommonOptions& options, const char* diskOption,
 
 // The two halves of a retention are worth nothing apart: a mode with no period
 // holds a backup for no time at all, and a period with no mode is not enforced.
+// The period is either a number of days or the moment it ends, never both: the
+// two would rarely agree, and the tool would have to guess which one was meant.
 // Whether the bucket can actually deliver the mode is the storage's call, and is
 // answered when the backup is created.
 bool Tool::checkImmutabilityOptions(const CommonOptions& options)
 {
+    if (options.retentionDays > 0 && options.retentionTill != 0) {
+        std::cerr << "Error: --retention and --retention-till are mutually exclusive\n";
+        return false;
+    }
+
     if (options.immutability == Abr::ImmutabilityMode::NONE) {
-        if (options.retentionDays > 0) {
-            std::cerr << "Error: --retention has no effect without --immutable\n";
+        if (options.retentionDays > 0 || options.retentionTill != 0) {
+            std::cerr << "Error: " << (options.retentionDays > 0 ? "--retention" : "--retention-till")
+                      << " has no effect without --immutable\n";
             return false;
         }
         return true;
@@ -398,8 +485,8 @@ bool Tool::checkImmutabilityOptions(const CommonOptions& options)
         return false;
     }
 
-    if (options.retentionDays <= 0) {
-        std::cerr << "Error: --immutable requires --retention\n";
+    if (options.retentionDays <= 0 && options.retentionTill == 0) {
+        std::cerr << "Error: --immutable requires --retention or --retention-till\n";
         return false;
     }
     return true;

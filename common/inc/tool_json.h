@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "abr_backup.h"
+#include "tool_options.h"
 
 namespace Tool
 {
@@ -101,6 +102,12 @@ namespace Tool
 
     std::string backupImmutability(const Abr::BackupInfo& info);
     std::string folderImmutability(const Abr::BackupFolderInfo& folder);
+
+    // The immutability a command was asked to hold a backup in, as 'backup', 'copy' and
+    // 'retention' report it: the period in days, or the moment it ends, whichever was given.
+    void addRequestedImmutability(JsonObject& json, const CommonOptions& options);
+    std::string requestedImmutability(const CommonOptions& options);
+    std::string requestedRetention(const CommonOptions& options);
 
     // In --json mode the result document is the only thing a caller parses, so
     // a command that fails still has to report through it.

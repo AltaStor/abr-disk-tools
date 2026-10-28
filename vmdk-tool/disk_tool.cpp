@@ -131,7 +131,10 @@ void printBackupHelp(const std::string& programName)
               << "      --immutable MODE    Hold the backup in 'governance' or 'compliance'\n"
               << "                          mode, so that it cannot be deleted or overwritten\n"
               << "                          before its retention expires (S3 only)\n"
-              << "      --retention DAYS    How long --immutable holds the backup, in days\n\n";
+              << "      --retention DAYS    How long --immutable holds the backup, in days\n"
+              << "      --retention-till DATE\n"
+              << "                          Hold it until DATE instead, in UTC as\n"
+              << "                          YYYY-MM-DDTHH:MM:SSZ; one of the two is required\n\n";
     printStorageOptions();
     std::cout << "\n";
     printVmdkOptions();
@@ -344,6 +347,7 @@ int runBackup(const std::string& programName, int argc, char* argv[])
     info.incremental = options.incremental() ? 1 : 0;
     info.m_immutabilityMode = options.immutability;
     info.m_immutabilityDays = options.retentionDays;
+    info.m_immutabilityUntil = options.retentionTill;
 
     std::shared_ptr<Abr::IBackup> pBackup;
     if (!pManager->createBackup(options.storage.path, options.storage.name, info, pBackup,
@@ -382,10 +386,7 @@ int runBackup(const std::string& programName, int argc, char* argv[])
         if (options.incremental()) {
             json.addString("change_id", options.changeId);
         }
-        json.addString("immutability", Abr::immutabilityModeName(options.immutability));
-        if (options.immutability != Abr::ImmutabilityMode::NONE) {
-            json.addNumber("retention_days", static_cast<uint64_t>(options.retentionDays));
-        }
+        addRequestedImmutability(json, options);
         addBackupInfo(json, info);
     } else {
         std::cout << "Source:            " << (options.vmdk.empty() ? options.source : options.vmdk) << "\n"
@@ -402,11 +403,7 @@ int runBackup(const std::string& programName, int argc, char* argv[])
                 << "Compression ratio: " << static_cast<double>(info.stored_data_size) / info.orig_data_size << "\n";
         }
         std::cout << "Encryption:        " << (info.encryption ? "AES-256-GCM" : "none") << "\n"
-                  << "Immutability:      "
-                  << (options.immutability == Abr::ImmutabilityMode::NONE
-                          ? std::string("none")
-                          : std::string(Abr::immutabilityModeName(options.immutability))
-                                + ", retained for " + std::to_string(options.retentionDays) + " day(s)") << "\n";
+                  << "Immutability:      " << requestedImmutability(options) << "\n";
     }
     return 0;
 }

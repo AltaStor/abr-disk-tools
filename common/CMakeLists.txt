@@ -16,6 +16,7 @@ add_library(abr-tools-common STATIC
     src/tool_help.cpp
     src/tool_backup.cpp
     src/tool_commands.cpp
+    src/tool_disk.cpp
 )
 
 # One half of the host shim, never both: separate translation units rather than

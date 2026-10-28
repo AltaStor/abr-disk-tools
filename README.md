@@ -16,9 +16,10 @@ same `--json` results, and they read and write the same repositories.
 
 ```
 common/         the CLI every tool shares: options, --json, the copy loops,
-                the chain merge, the commands that touch no disk
+                the chain merge, every command
 vmdk-tool/, vhdx-tool/
-                one folder per format: its options and help, backup, restore
+                one folder per format: its options and help, and its disks
+                opened for backup and restore
 abr-backup-lib/ the .abr format and its file and S3 storage, the backuplib
                 library (submodule, AltaStor/abr-backup-lib)
 abr-disk-lib/   the disk backends behind IDiskReader/IDiskWriter (submodule,
@@ -254,9 +255,11 @@ whose backend `abr-disk-lib` already has:
 
    which links `common/`, `abr-disk-lib` and `backuplib`, and on Windows adds
    the version resource and the manifest every tool carries.
-3. `foo-tool/disk_tool.cpp` -- the format's options and help, `openSource` and
-   `openTarget`, `runBackup`, `runRestore`, and the `dispatch` table handed to
-   `Tool::run`. Start from the nearer of `vmdk-tool/` and `vhdx-tool/`.
+3. `foo-tool/disk_tool.cpp` -- the format's options and help, a class derived
+   from `Tool::DiskTool` that parses them and opens the format's disks for
+   `backup` and `restore`, and the `dispatch` table handed to `Tool::run`.
+   The two commands themselves are `common/`'s. Start from the nearer of
+   `vmdk-tool/` and `vhdx-tool/`.
 4. In the top-level `CMakeLists.txt`, the systems it is built for:
 
    ```cmake

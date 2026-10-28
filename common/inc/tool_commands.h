@@ -6,6 +6,7 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 #include <string>
 
 #include "tool_help.h"
@@ -13,6 +14,7 @@
 
 namespace Tool
 {
+    class DiskTool; // tool_disk.h
     //
     // What the shared commands need to know about the tool running them.
     //
@@ -29,6 +31,9 @@ namespace Tool
         // hands back only the shared part: a bad value in the tool's half is
         // still an error on a command that never looks at it.
         std::function<bool(int argc, char* argv[], CommonOptions& options)> parseSharedOptions;
+
+        // A fresh instance of the format's half of 'backup' and 'restore', one per run.
+        std::function<std::unique_ptr<DiskTool>()> diskTool;
     };
 
     // Installed by run() before any command sees an argument, and valid until

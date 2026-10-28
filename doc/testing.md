@@ -369,6 +369,9 @@ A `file` repository must be mode `0750` or stricter or backuplib refuses it.
 Under Wine the help and error matrices run in full and the round trip runs for
 the `file` backend; nothing involving `--vhdx` does, since Wine's `virtdisk.dll`
 is mostly stubs and its processes are not elevated. Run `Test-Vm.ps1` against a
-real host once afterwards — with `runBackup` and `runRestore` in the tool's
-own folder, what a shared-code change exposes there is `Tool::run`'s scaffolding and
-`Plat::StdioSetup`, not the virtual disk path itself.
+real host once afterwards: `runBackup` and `runRestore` are in `common/` too, so
+a shared-code change reaches the virtual disk path as well as `Tool::run`'s
+scaffolding and `Plat::StdioSetup`. For `abr-vmdk-tool`, the round trip
+through a local VMDK made with `qemu-img` covers the VDDK side of it; capture
+it with `ABR_VMDK_TOOL_VDDK_DIR` set, and filter out the VDDK's own timestamped
+log lines before diffing.

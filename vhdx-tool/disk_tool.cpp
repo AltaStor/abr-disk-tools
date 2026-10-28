@@ -4,36 +4,18 @@
 // AltaStor VHDX backup utility
 //
 
-#include <algorithm>
-#include <atomic>
-#include <cctype>
-#include <cstdint>
-#include <cstdio>
-#include <filesystem>
-#include <fstream>
 #include <iostream>
-#include <map>
 #include <memory>
-#include <optional>
-#include <sstream>
-#include <streambuf>
 #include <string>
-#include <vector>
-
-#include "abr_backup.h"
-#include "s3_backup.h"
 
 #include "cli_options.h"
 #include "disk_device.h"
-#include "plat.h"
-#include "tool_json.h"
-#include "tool_backup.h"
 #include "tool_commands.h"
+#include "tool_disk.h"
 #include "tool_help.h"
 #include "tool_options.h"
 #include "vhdx_disk.h"
 #include "version.h"
-#include "win_util.h"
 
 // Everything common/ shares between the tools is used here by its plain name,
 // as it was when it lived in this file.
@@ -61,18 +43,6 @@ const Cli::LongOption kToolLongOptions[] = {
 
 struct Options : Tool::CommonOptions {
     std::string vhdx;
-};
-
-// What a virtual disk says about itself travels with its reader, for 'backup'
-// to report next to the data it read.
-struct DiskSource {
-    std::unique_ptr<IDiskReader> reader;
-    Vhdx::DiskProperties properties;
-};
-
-struct DiskTarget {
-    std::unique_ptr<IDiskWriter> writer;
-    bool created = false;
 };
 
 void printVhdxOptions(bool forRestore)
@@ -193,257 +163,98 @@ bool checkDiskOptions(const std::string& fileOption, const std::string& file, co
     return true;
 }
 
-bool openSource(const Options& options, DiskSource& source)
+// What a virtual disk says about itself travels with its reader, for 'backup'
+// to report next to the data it read.
+struct VhdxSource : Tool::DiskSource {
+    Vhdx::DiskProperties properties;
+
+    std::string description() const override
+    {
+        if (properties.format.empty()) {
+            return {};
+        }
+        return properties.format + (properties.type.empty() ? "" : ", " + properties.type);
+    }
+
+    // What the next incremental of this disk is taken against.
+    void addDetails(Tool::JsonObject& json) const override
+    {
+        if (!properties.changeTrackingId.empty()) {
+            json.addString("rct_id", properties.changeTrackingId);
+        }
+    }
+
+    void printDetails() const override
+    {
+        if (!properties.changeTrackingId.empty()) {
+            std::cout << "RCT id:            " << properties.changeTrackingId << "\n";
+        }
+    }
+};
+
+// This tool's half of 'backup' and 'restore'; the rest of both is common/'s.
+class VhdxTool : public Tool::DiskTool
 {
-    if (options.vhdx.empty()) {
-        source.reader = openFileReader(options.source);
-    } else {
-        source.reader = Vhdx::openReader(options.vhdx, options.changeId, source.properties);
-    }
-    return source.reader != nullptr;
-}
+public:
+    bool parseOptions(int argc, char* argv[]) override { return ::parseOptions(argc, argv, m_options); }
+    const Tool::CommonOptions& options() const override { return m_options; }
 
-// image is the geometry of the backup, which a virtual disk that is not there
-// yet is created with.
-bool openTarget(const Options& options, DiskTarget& target, bool keepExisting,
-                const DiskGeometry& image)
-{
-    if (options.vhdx.empty()) {
-        target.writer = openFileWriter(options.target, keepExisting);
-    } else {
-        target.writer = Vhdx::openWriter(options.vhdx, keepExisting, image, target.created);
-    }
-    return target.writer != nullptr;
-}
+    void printBackupHelp(const std::string& programName) const override { ::printBackupHelp(programName); }
+    void printRestoreHelp(const std::string& programName) const override { ::printRestoreHelp(programName); }
 
-int runBackup(const std::string& programName, int argc, char* argv[])
-{
-    Options options;
-    if (!parseOptions(argc, argv, options)) {
-        return 1;
-    }
-    if (options.help) {
-        printBackupHelp(programName);
-        return 0;
-    }
-    if (!checkStorageOptions(options.storage) || !checkDiskOptions("--source", options.source, options)
-        || !checkBackupType(options, "--vhdx", !options.vhdx.empty())
-        || !checkImmutabilityOptions(options)) {
-        return 1;
-    }
-    if (options.storage.name.empty() || (options.source.empty() && options.vhdx.empty())) {
-        std::cerr << "Error: backup requires --name and either --source or --vhdx\n";
-        printBackupHelp(programName);
-        return 1;
+    bool checkOptions(bool forRestore) const override
+    {
+        return forRestore ? checkDiskOptions("--target", m_options.target, m_options)
+                          : checkDiskOptions("--source", m_options.source, m_options);
     }
 
-    DiskSource source;
-    if (!openSource(options, source)) {
-        return 1;
-    }
+    const char* diskOption() const override { return "--vhdx"; }
+    const std::string& disk() const override { return m_options.vhdx; }
 
-    auto pManager = openManager(options.storage);
-    if (!pManager) {
-        return 1;
-    }
+    std::unique_ptr<Tool::DiskSource> openSource() override
+    {
+        auto pSource = std::make_unique<VhdxSource>();
 
-    const DiskGeometry& geometry = source.reader->geometry();
-
-    Abr::BackupInfo info = {};
-    info.sectorSize = static_cast<uint16_t>(geometry.sectorSize);
-    info.phySectorSize = static_cast<uint16_t>(geometry.phySectorSize);
-    info.sectors = geometry.sectors;
-    info.compression = static_cast<uint8_t>(options.storage.compression);
-    info.encryption = options.storage.key.empty() ? 0 : 1;
-    info.incremental = options.incremental() ? 1 : 0;
-    info.m_immutabilityMode = options.immutability;
-    info.m_immutabilityDays = options.retentionDays;
-    info.m_immutabilityUntil = options.retentionTill;
-
-    std::shared_ptr<Abr::IBackup> pBackup;
-    if (!pManager->createBackup(options.storage.path, options.storage.name, info, pBackup,
-                                options.storage.key)) {
-        std::cerr << "Error: failed to create backup '" << options.storage.name << "'\n";
-        return 1;
-    }
-
-    bool ok = copyToBackup(*source.reader, *pBackup,
-                           alignBufferSize(kDefaultChunkSize, geometry.sectorSize), options.json);
-
-    info = pBackup->getInfo();
-
-    // On failure this discards everything already written, so a failed run leaves
-    // nothing of the backup behind in the repository.
-    if (!pBackup->finalizeBackup(!ok)) {
-        if (ok) {
-            std::cerr << "Error: failed to finalize backup '" << options.storage.name << "'\n";
-            ok = false;
+        if (m_options.vhdx.empty()) {
+            pSource->reader = openFileReader(m_options.source);
         } else {
-            std::cerr << "Error: the partial backup '" << backupLocation(options.storage)
-                      << "' could not be removed, delete it with the 'remove' command\n";
+            pSource->reader = Vhdx::openReader(m_options.vhdx, m_options.changeId, pSource->properties);
         }
+        return pSource->reader ? std::move(pSource) : nullptr;
     }
 
-    if (!ok) {
-        return 1;
-    }
+    // A --vhdx target that is not there yet is created with the geometry of the backup,
+    // and the report then says so.
+    std::unique_ptr<Tool::DiskTarget> openTarget(bool keepExisting, const DiskGeometry& image) override
+    {
+        auto pTarget = std::make_unique<Tool::DiskTarget>();
 
-    const std::string sourcePath = options.vhdx.empty() ? options.source : options.vhdx;
-    const Vhdx::DiskProperties& disk = source.properties;
-
-    if (options.json) {
-        JsonObject json("backup", "ok");
-        json.addString("source", sourcePath);
-        json.addString("backup", backupLocation(options.storage));
-        json.addString("name", options.storage.name);
-        json.addString("kind", options.incremental() ? "incremental" : "full");
-        if (options.incremental()) {
-            json.addString("change_id", options.changeId);
+        if (m_options.vhdx.empty()) {
+            pTarget->writer = openFileWriter(m_options.target, keepExisting);
+        } else {
+            bool created = false;
+            pTarget->writer = Vhdx::openWriter(m_options.vhdx, keepExisting, image, created);
+            pTarget->created = created;
         }
-        // What the next incremental of this disk is taken against.
-        if (!disk.changeTrackingId.empty()) {
-            json.addString("rct_id", disk.changeTrackingId);
-        }
-        addRequestedImmutability(json, options);
-        addBackupInfo(json, info);
-    } else {
-        std::string sourceKind;
-        if (!disk.format.empty()) {
-            sourceKind = " (" + disk.format + (disk.type.empty() ? "" : ", " + disk.type) + ")";
-        }
-
-        std::cout << "Source:            " << sourcePath << sourceKind << "\n"
-                  << "Backup:            " << backupLocation(options.storage) << "\n"
-                  << "Kind:              "
-                  << (options.incremental() ? "incremental (changed since " + options.changeId + ")"
-                                            : std::string("full")) << "\n";
-        if (!disk.changeTrackingId.empty()) {
-            std::cout << "RCT id:            " << disk.changeTrackingId << "\n";
-        }
-        std::cout << "Raw data size:     " << info.orig_data_size << " bytes\n"
-                  << "Compression:       " << (info.compression ?
-                                    ("zstd level " + std::to_string(info.compression)) : std::string("none")) << "\n";
-        if (info.compression && info.orig_data_size > 0) {
-            std::cout << "Stored data size:  " << info.stored_data_size << " bytes\n"
-                << "Compression ratio: " << static_cast<double>(info.stored_data_size) / info.orig_data_size << "\n";
-        }
-        std::cout << "Encryption:        " << (info.encryption ? "AES-256-GCM" : "none") << "\n"
-                  << "Immutability:      " << requestedImmutability(options) << "\n";
-    }
-    return 0;
-}
-
-int runRestore(const std::string& programName, int argc, char* argv[])
-{
-    Options options;
-    if (!parseOptions(argc, argv, options)) {
-        return 1;
-    }
-    if (options.help) {
-        printRestoreHelp(programName);
-        return 0;
-    }
-    if (!checkStorageOptions(options.storage) || !checkDiskOptions("--target", options.target, options)) {
-        return 1;
-    }
-    if ((options.storage.name.empty() && options.sourceNames.empty())
-        || (options.target.empty() && options.vhdx.empty())) {
-        std::cerr << "Error: restore requires --name or --source-names, and either --target or --vhdx\n";
-        printRestoreHelp(programName);
-        return 1;
-    }
-    if (!checkRestoreNames(options)) {
-        return 1;
+        return pTarget->writer ? std::move(pTarget) : nullptr;
     }
 
-    auto pManager = openManager(options.storage);
-    if (!pManager) {
-        return 1;
-    }
+private:
+    Options m_options;
+};
 
-    // A single --name is a chain of one, so both are restored the same way.
-    BackupChain chain;
-    std::vector<MergedPiece> plan;
-    uint64_t total = 0;
-    if (!openRestoreChain(*pManager, options, chain, plan, total)) {
-        return 1;
-    }
-
-    const Abr::BackupInfo& info = chain.backups.front()->getInfo();
-    const bool incremental = info.incremental != 0;
-
-    DiskGeometry image;
-    image.sectors = info.sectors;
-    image.sectorSize = info.sectorSize;
-    image.phySectorSize = info.phySectorSize;
-
-    DiskTarget target;
-    if (!openTarget(options, target, incremental, image)) {
-        return 1;
-    }
-
-    const DiskGeometry& geometry = target.writer->geometry();
-
-    if (geometry.sectors != 0) {
-        if (info.sectorSize != geometry.sectorSize) {
-            std::cerr << "Error: backup sector size " << info.sectorSize
-                      << " does not match target sector size " << geometry.sectorSize << "\n";
-            return 1;
-        }
-        if (info.sectors != geometry.sectors) {
-            std::cerr << "Error: backup holds " << info.sectors << " sectors but the target has "
-                      << geometry.sectors << "\n";
-            return 1;
-        }
-    }
-
-    if (!target.writer->setImageSize(info.sectors * info.sectorSize)) {
-        return 1;
-    }
-
-    bool ok = copyChainToDisk(chain, plan, total, *target.writer,
-                              alignBufferSize(chainBufferSize(chain), geometry.sectorSize), options.json);
-
-    // Released here rather than at the end of the scope, so that a virtual disk
-    // this restore created and did not finish is gone before the failure is reported.
-    target.writer.reset();
-
-    if (!ok) {
-        return 1;
-    }
-
-    const std::string restoreTarget = options.vhdx.empty() ? options.target : options.vhdx;
-
-    if (options.json) {
-        JsonObject json("restore", "ok");
-        addRestoredFrom(json, options);
-        json.addString("target", restoreTarget);
-        json.addString("kind", incremental ? "incremental" : "full");
-        if (!options.vhdx.empty()) {
-            json.addBool("created", target.created);
-        }
-        json.addBool("decrypted", !options.storage.key.empty());
-    } else {
-        std::cout << (incremental ? "Applied incremental " : "Restored ") << restoredFrom(options)
-                  << " to "
-                  << (target.created ? "new virtual disk '" : "'") << restoreTarget << "'"
-                  << (options.storage.key.empty() ? "" : " (decrypted)") << "\n";
-    }
-    return 0;
-}
-
-//
-// The command table. Everything but 'backup' and 'restore' is common/'s,
-// since only those two touch the virtual disk layer.
-// Adding a command means a branch here, a print<Cmd>Help, and -- if it is one
-// every tool shares -- the run<Cmd> in common/ rather than below.
+// The command table. Every command is common/'s; 'backup' and 'restore' reach
+// this tool's disks through VhdxTool above, by way of Tool::Context.
+// Adding a command means a branch here and in every other tool's table, a run<Cmd> and
+// a print<Cmd>Help in common/, and, if it touches a disk, what it needs added to
+// Tool::DiskTool.
 //
 int dispatch(const std::string& programName, const std::string& command, int argc, char* argv[])
 {
     if (command == "backup") {
-        return runBackup(programName, argc, argv);
+        return Tool::runBackup(programName, argc, argv);
     } else if (command == "restore") {
-        return runRestore(programName, argc, argv);
+        return Tool::runRestore(programName, argc, argv);
     } else if (command == "copy") {
         return Tool::runCopy(programName, argc, argv);
     } else if (command == "list") {
@@ -466,7 +277,8 @@ int dispatch(const std::string& programName, const std::string& command, int arg
 
 int main(int argc, char* argv[])
 {
-    static const Tool::Context context{kBranding, parseCommonOptions};
+    static const Tool::Context context{kBranding, parseCommonOptions,
+                                       [] { return std::make_unique<VhdxTool>(); }};
 
     return Tool::run(argc, argv, context, dispatch);
 }

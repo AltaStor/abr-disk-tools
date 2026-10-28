@@ -10,21 +10,14 @@
 #include <limits>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include <unistd.h>
 
-#include "abr_backup.h"
-
-// Abr::immutabilityModeName lives here, and runBackup/runRestore report it.
-#include "s3_backup.h"
-
 #include "cli_options.h"
 #include "disk_device.h"
-#include "tool_backup.h"
 #include "tool_commands.h"
+#include "tool_disk.h"
 #include "tool_help.h"
-#include "tool_json.h"
 #include "tool_options.h"
 #include "vddk_disk.h"
 #include "version.h"
@@ -80,18 +73,6 @@ struct Options : Tool::CommonOptions {
     Vddk::ConnectParams vddk;
     std::string vmdk;
     uint64_t queryChunk = kDefaultQueryChunk;
-};
-
-// A VDDK-backed disk only stays valid while its session is alive, so both are
-// handed out together.
-struct DiskSource {
-    std::unique_ptr<Vddk::Session> session;
-    std::unique_ptr<IDiskReader> reader;
-};
-
-struct DiskTarget {
-    std::unique_ptr<Vddk::Session> session;
-    std::unique_ptr<IDiskWriter> writer;
 };
 
 void printVmdkOptions()
@@ -278,238 +259,75 @@ bool checkVmdkOptions(const Options& options)
     return true;
 }
 
-bool openSource(const Options& options, DiskSource& source)
+// This tool's half of 'backup' and 'restore'; the rest of both is common/'s.
+// A VDDK-backed disk only stays valid while its session is alive, so both are
+// handed out together.
+class VmdkTool : public Tool::DiskTool
 {
-    if (options.vmdk.empty()) {
-        source.reader = openFileReader(options.source);
-        return source.reader != nullptr;
-    }
+public:
+    bool parseOptions(int argc, char* argv[]) override { return ::parseOptions(argc, argv, m_options); }
+    const Tool::CommonOptions& options() const override { return m_options; }
 
-    source.session = std::make_unique<Vddk::Session>();
-    if (!source.session->connect(options.vddk, true)) {
-        return false;
-    }
+    void printBackupHelp(const std::string& programName) const override { ::printBackupHelp(programName); }
+    void printRestoreHelp(const std::string& programName) const override { ::printRestoreHelp(programName); }
 
-    source.reader = source.session->openReader(options.vmdk, options.changeId, options.queryChunk);
+    bool checkOptions(bool) const override { return checkVmdkOptions(m_options); }
 
-    return source.reader != nullptr;
-}
+    const char* diskOption() const override { return "--vmdk"; }
+    const std::string& disk() const override { return m_options.vmdk; }
 
-bool openTarget(const Options& options, DiskTarget& target, bool keepExisting)
-{
-    if (options.vmdk.empty()) {
-        target.writer = openFileWriter(options.target, keepExisting);
-        return target.writer != nullptr;
-    }
+    std::unique_ptr<Tool::DiskSource> openSource() override
+    {
+        auto pSource = std::make_unique<Tool::DiskSource>();
 
-    target.session = std::make_unique<Vddk::Session>();
-    if (!target.session->connect(options.vddk, false)) {
-        return false;
-    }
-
-    target.writer = target.session->openWriter(options.vmdk);
-
-    return target.writer != nullptr;
-}
-
-int runBackup(const std::string& programName, int argc, char* argv[])
-{
-    Options options;
-    if (!parseOptions(argc, argv, options)) {
-        return 1;
-    }
-    if (options.help) {
-        printBackupHelp(programName);
-        return 0;
-    }
-    if (!checkStorageOptions(options.storage) || !checkVmdkOptions(options)
-        || !checkBackupType(options, "--vmdk", !options.vmdk.empty()) || !checkImmutabilityOptions(options)) {
-        return 1;
-    }
-    if (options.storage.name.empty() || (options.source.empty() && options.vmdk.empty())) {
-        std::cerr << "Error: backup requires --name and either --source or --vmdk\n";
-        printBackupHelp(programName);
-        return 1;
-    }
-
-    DiskSource source;
-    if (!openSource(options, source)) {
-        return 1;
-    }
-
-    auto pManager = openManager(options.storage);
-    if (!pManager) {
-        return 1;
-    }
-
-    const DiskGeometry& geometry = source.reader->geometry();
-
-    Abr::BackupInfo info = {};
-    info.sectorSize = static_cast<uint16_t>(geometry.sectorSize);
-    info.phySectorSize = static_cast<uint16_t>(geometry.phySectorSize);
-    info.sectors = geometry.sectors;
-    info.compression = static_cast<uint8_t>(options.storage.compression);
-    info.encryption = options.storage.key.empty() ? 0 : 1;
-    info.incremental = options.incremental() ? 1 : 0;
-    info.m_immutabilityMode = options.immutability;
-    info.m_immutabilityDays = options.retentionDays;
-    info.m_immutabilityUntil = options.retentionTill;
-
-    std::shared_ptr<Abr::IBackup> pBackup;
-    if (!pManager->createBackup(options.storage.path, options.storage.name, info, pBackup,
-                                options.storage.key)) {
-        std::cerr << "Error: failed to create backup '" << options.storage.name << "'\n";
-        return 1;
-    }
-
-    bool ok = copyToBackup(*source.reader, *pBackup,
-                           alignBufferSize(kDefaultChunkSize, geometry.sectorSize), options.json);
-
-    info = pBackup->getInfo();
-
-    // On failure this discards everything already written, so a failed run leaves
-    // nothing of the backup behind in the repository.
-    if (!pBackup->finalizeBackup(!ok)) {
-        if (ok) {
-            std::cerr << "Error: failed to finalize backup '" << options.storage.name << "'\n";
-            ok = false;
+        if (m_options.vmdk.empty()) {
+            pSource->reader = openFileReader(m_options.source);
         } else {
-            std::cerr << "Error: the partial backup '" << backupLocation(options.storage)
-                      << "' could not be removed, delete it with the 'remove' command\n";
+            auto pSession = std::make_shared<Vddk::Session>();
+            pSource->session = pSession;
+            if (!pSession->connect(m_options.vddk, true)) {
+                return nullptr;
+            }
+            pSource->reader = pSession->openReader(m_options.vmdk, m_options.changeId,
+                                                   m_options.queryChunk);
         }
+        return pSource->reader ? std::move(pSource) : nullptr;
     }
 
-    if (!ok) {
-        return 1;
-    }
+    // A VMDK is never created here, so the geometry of the backup goes unused.
+    std::unique_ptr<Tool::DiskTarget> openTarget(bool keepExisting, const DiskGeometry&) override
+    {
+        auto pTarget = std::make_unique<Tool::DiskTarget>();
 
-    if (options.json) {
-        JsonObject json("backup", "ok");
-        json.addString("source", options.vmdk.empty() ? options.source : options.vmdk);
-        json.addString("backup", backupLocation(options.storage));
-        json.addString("name", options.storage.name);
-        json.addString("kind", options.incremental() ? "incremental" : "full");
-        if (options.incremental()) {
-            json.addString("change_id", options.changeId);
+        if (m_options.vmdk.empty()) {
+            pTarget->writer = openFileWriter(m_options.target, keepExisting);
+        } else {
+            auto pSession = std::make_shared<Vddk::Session>();
+            pTarget->session = pSession;
+            if (!pSession->connect(m_options.vddk, false)) {
+                return nullptr;
+            }
+            pTarget->writer = pSession->openWriter(m_options.vmdk);
         }
-        addRequestedImmutability(json, options);
-        addBackupInfo(json, info);
-    } else {
-        std::cout << "Source:            " << (options.vmdk.empty() ? options.source : options.vmdk) << "\n"
-                  << "Backup:            " << backupLocation(options.storage) << "\n"
-                  << "Kind:              "
-                  << (options.incremental() ? "incremental (changed since " + options.changeId + ")"
-                                            : std::string("full")) << "\n"
-                  << "Raw data size:     " << info.orig_data_size << " bytes\n"
-                  << "Compression:       " << (info.compression ?
-                            ("zstd level " + std::to_string(info.compression)) : std::string("none")) << "\n";
-
-        if (info.compression && info.orig_data_size > 0) {
-            std::cout << "Stored data size:  " << info.stored_data_size << " bytes\n"
-                << "Compression ratio: " << static_cast<double>(info.stored_data_size) / info.orig_data_size << "\n";
-        }
-        std::cout << "Encryption:        " << (info.encryption ? "AES-256-GCM" : "none") << "\n"
-                  << "Immutability:      " << requestedImmutability(options) << "\n";
-    }
-    return 0;
-}
-
-int runRestore(const std::string& programName, int argc, char* argv[])
-{
-    Options options;
-    if (!parseOptions(argc, argv, options)) {
-        return 1;
-    }
-    if (options.help) {
-        printRestoreHelp(programName);
-        return 0;
-    }
-    if (!checkStorageOptions(options.storage) || !checkVmdkOptions(options)) {
-        return 1;
-    }
-    if ((options.storage.name.empty() && options.sourceNames.empty())
-        || (options.target.empty() && options.vmdk.empty())) {
-        std::cerr << "Error: restore requires --name or --source-names, and either --target or --vmdk\n";
-        printRestoreHelp(programName);
-        return 1;
-    }
-    if (!checkRestoreNames(options)) {
-        return 1;
+        return pTarget->writer ? std::move(pTarget) : nullptr;
     }
 
-    auto pManager = openManager(options.storage);
-    if (!pManager) {
-        return 1;
-    }
+private:
+    Options m_options;
+};
 
-    // A single --name is a chain of one, so both are restored the same way.
-    BackupChain chain;
-    std::vector<MergedPiece> plan;
-    uint64_t total = 0;
-    if (!openRestoreChain(*pManager, options, chain, plan, total)) {
-        return 1;
-    }
-
-    const Abr::BackupInfo& info = chain.backups.front()->getInfo();
-    const bool incremental = info.incremental != 0;
-
-    DiskTarget target;
-    if (!openTarget(options, target, incremental)) {
-        return 1;
-    }
-
-    const DiskGeometry& geometry = target.writer->geometry();
-
-    if (geometry.sectors != 0) {
-        if (info.sectorSize != geometry.sectorSize) {
-            std::cerr << "Error: backup sector size " << info.sectorSize
-                      << " does not match target sector size " << geometry.sectorSize << "\n";
-            return 1;
-        }
-        if (info.sectors != geometry.sectors) {
-            std::cerr << "Error: backup holds " << info.sectors << " sectors but the target has "
-                      << geometry.sectors << "\n";
-            return 1;
-        }
-    }
-
-    if (!target.writer->setImageSize(info.sectors * info.sectorSize)) {
-        return 1;
-    }
-
-    bool ok = copyChainToDisk(chain, plan, total, *target.writer,
-                              alignBufferSize(chainBufferSize(chain), geometry.sectorSize), options.json);
-    if (!ok) {
-        return 1;
-    }
-
-    const std::string restoreTarget = options.vmdk.empty() ? options.target : options.vmdk;
-
-    if (options.json) {
-        JsonObject json("restore", "ok");
-        addRestoredFrom(json, options);
-        json.addString("target", restoreTarget);
-        json.addString("kind", incremental ? "incremental" : "full");
-        json.addBool("decrypted", !options.storage.key.empty());
-    } else {
-        std::cout << (incremental ? "Applied incremental " : "Restored ") << restoredFrom(options)
-                  << " to '" << restoreTarget << "'"
-                  << (options.storage.key.empty() ? "" : " (decrypted)") << "\n";
-    }
-    return 0;
-}
-
-// The command table. Everything but 'backup' and 'restore' is common/'s,
-// since only those two touch the VDDK. 
-// Adding a command means a branch here, a // print<Cmd>Help, and -- if it is one
-// every tool shares -- the run<Cmd> in common/ rather than above.
+// The command table. Every command is common/'s; 'backup' and 'restore' reach
+// this tool's disks through VmdkTool above, by way of Tool::Context.
+// Adding a command means a branch here and in every other tool's table, a run<Cmd> and
+// a print<Cmd>Help in common/, and, if it touches a disk, what it needs added to
+// Tool::DiskTool.
 //
 int dispatch(const std::string& programName, const std::string& command, int argc, char* argv[])
 {
     if (command == "backup") {
-        return runBackup(programName, argc, argv);
+        return Tool::runBackup(programName, argc, argv);
     } else if (command == "restore") {
-        return runRestore(programName, argc, argv);
+        return Tool::runRestore(programName, argc, argv);
     } else if (command == "copy") {
         return Tool::runCopy(programName, argc, argv);
     } else if (command == "list") {
@@ -532,7 +350,8 @@ int dispatch(const std::string& programName, const std::string& command, int arg
 
 int main(int argc, char* argv[])
 {
-    static const Tool::Context context{kBranding, parseCommonOptions};
+    static const Tool::Context context{kBranding, parseCommonOptions,
+                                       [] { return std::make_unique<VmdkTool>(); }};
 
     const int result = Tool::run(argc, argv, context, dispatch);
 

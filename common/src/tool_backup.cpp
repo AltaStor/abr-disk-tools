@@ -300,9 +300,14 @@ bool Tool::copyChainToBackup(BackupChain& chain, const std::vector<MergedPiece>&
     return true;
 }
 
-// Opens the chain and checks it is one: a full backup, then incrementals of the same disk.
+// Opens the chain and checks it is one: a full backup or an incremental, then incrementals
+// of the same disk.
 // Nothing links an incremental to its parent in the format, so the order
 // --source-names gives is taken as the chain of backups.
+// A chain that starts with an incremental is not a whole disk, but merging it is still sound:
+// the result applied onto the parent of its first backup leaves the disk each of them
+// applied in turn would have left.
+// That is what lets a repository be kept up to date one new backup at a time.
 bool Tool::openChain(Abr::IBackupManager& manager, const StorageOptions& source,
                const std::vector<std::string>& names, BackupChain& chain)
 {
@@ -326,20 +331,14 @@ bool Tool::openChain(Abr::IBackupManager& manager, const StorageOptions& source,
 
     const Abr::BackupInfo& base = chain.backups.front()->getInfo();
 
-    if (base.incremental) {
-        std::cerr << "Error: '" << chain.names.front()
-                  << "' is an incremental backup, so the chain has no base to merge onto.\n"
-                  << "       --source-names takes the full backup first, then the incrementals\n"
-                  << "       taken on top of it, in order.\n";
-        return false;
-    }
-
     for (size_t i = 1; i < chain.backups.size(); ++i) {
         const Abr::BackupInfo& info = chain.backups[i]->getInfo();
 
         if (!info.incremental) {
             std::cerr << "Error: '" << chain.names[i]
-                      << "' is a full backup, and only the first backup of a chain may be one\n";
+                      << "' is a full backup, and only the first backup of a chain may be one.\n"
+                      << "       --source-names takes the backup to start from first, then the\n"
+                      << "       incrementals taken on top of it, in order.\n";
             return false;
         }
 

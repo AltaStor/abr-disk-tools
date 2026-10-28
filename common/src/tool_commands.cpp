@@ -136,9 +136,12 @@ int Tool::runCopy(const std::string& programName, int argc, char* argv[])
     info.compression = static_cast<uint8_t>(options.storage.compression);
     info.encryption = options.storage.key.empty() ? 0 : 1;
 
-    // What the chain adds up to is a whole disk, so the result is a full backup
-    // even when most of what went into it came from incrementals.
-    info.incremental = 0;
+    // A chain from a full backup adds up to a whole disk, so the result is a full backup even
+    // when most of what went into it came from incrementals.
+    // A chain from an incremental holds only what changed since that one's parent, and the
+    // result is an incremental of the same parent, to be applied as restore applies any other.
+    const bool incremental = base.incremental != 0;
+    info.incremental = incremental ? 1 : 0;
     info.m_immutabilityMode = options.immutability;
     info.m_immutabilityDays = options.retentionDays;
     info.m_immutabilityUntil = options.retentionTill;
@@ -186,7 +189,7 @@ int Tool::runCopy(const std::string& programName, int argc, char* argv[])
         json.addNumber("merged_from", chain.names.size());
         json.addString("backup", backupLocation(options.storage));
         json.addString("name", options.storage.name);
-        json.addString("kind", "full");
+        json.addString("kind", incremental ? "incremental" : "full");
         addRequestedImmutability(json, options);
         addBackupInfo(json, info);
     } else {
@@ -197,7 +200,8 @@ int Tool::runCopy(const std::string& programName, int argc, char* argv[])
 
         std::cout << "Source:            " << storageLocation(source) << " (" << names << ")\n"
                   << "Backup:            " << backupLocation(options.storage) << "\n"
-                  << "Kind:              full, merged from " << chain.names.size() << " backup(s)\n"
+                  << "Kind:              " << (incremental ? "incremental" : "full")
+                  << ", merged from " << chain.names.size() << " backup(s)\n"
                   << "Raw data size:     " << info.orig_data_size << " bytes\n"
                   << "Compression:       "
                   << (info.compression ? ("zstd level " + std::to_string(info.compression))

@@ -64,8 +64,11 @@ work without a bundle present.
 `copy` reads a full backup and the incrementals taken on top of it and writes
 what they add up to as one new full backup, in the same repository or in
 another one — which is also how a backup is recompressed, re-keyed, or moved
-between a folder and a bucket. The storage it reads from is described by
-`--source-<...>` options that each fall back to the destination's.
+between a folder and a bucket. A chain may also start with an incremental, or
+be a single backup of either kind, and the copy is then of the same kind as its
+first backup: that is how another repository is kept up to date one new backup
+at a time. The storage it reads from is described by `--source-<...>` options
+that each fall back to the destination's.
 
 See [doc/abr-vmdk-tool.md](../doc/abr-vmdk-tool.md) for the full manual: every
 command's options, sample invocations, immutability/retention handling, the

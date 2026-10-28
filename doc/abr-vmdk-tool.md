@@ -248,6 +248,10 @@ target started empty). To apply one:
    permits writing onto a target that already holds data instead of the tool
    refusing as a safety check.
 
+The target is then kept up to date by applying every incremental taken
+afterwards the same way, one at a time and in the order they were taken, or
+all of them at once as a single incremental merged by [copy](#copy).
+
 Restoring to an existing file target without `--force` truncates it first;
 with `--force` (applying an incremental) the existing content is kept and
 only the ranges the incremental covers are overwritten.
@@ -267,7 +271,9 @@ Restored '/srv/backups/web01-sda' to '/dev/sdb'
 ### copy
 
 Merge a chain of backups — a full backup and the incrementals taken on top of
-it — into one new full backup.
+it — into one new full backup. A chain may also start with an incremental, or
+be a single backup of either kind, which is how another repository is kept up
+to date one new backup at a time.
 
 ```
 abr-vmdk-tool.sh copy [options]
@@ -276,7 +282,7 @@ abr-vmdk-tool.sh copy [options]
 | Option | Argument | Meaning |
 | --- | --- | --- |
 | `-n`, `--name` | `NAME` | Name of the backup to create. **Required.** |
-| `--source-names` | `LIST` | Comma-separated chain to merge: the full backup first, then its incrementals in the order they were taken. **Required.** |
+| `--source-names` | `LIST` | Comma-separated chain to merge: the backup to start from first, full or incremental, then the incrementals taken on top of it in the order they were taken. **Required.** |
 | `-k`, `--key` | `KEY` | Encryption key for the new backup. Optional, and unrelated to the chain's own key — that one is `--source-key`. |
 | `-c`, `--compression` | `0`–`22` | Compression level for the new backup. Default: `3`. |
 | `--immutable` | `none` \| `governance` \| `compliance` | Hold the new backup under S3 Object Lock, as for [backup](#backup). |
@@ -292,6 +298,29 @@ changed it. Nothing of the chain is read twice and nothing is written to it —
 `copy` only reads it — so the originals are left exactly as they were and can
 be removed afterwards, once the copy has been verified, to collapse a long
 chain into a single backup.
+
+A chain that starts with an incremental is not a whole disk, and the result is
+an incremental too: an incremental of the same parent as the first backup of
+the chain. Applied with `restore --force` onto a target that holds that parent,
+it leaves the disk that applying each backup of the chain in turn would have
+left. With a single backup in `--source-names` the copy is that backup as it
+is, full or incremental, so a second repository is kept up to date by copying
+every new backup there as it is taken, rather than the whole disk again:
+
+```console
+$ abr-vmdk-tool.sh copy --folder /mnt/offsite \
+      --source-folder /srv/backups --source-names web01-sda-inc3 --name web01-sda-inc3
+100%
+Source:            /srv/backups (web01-sda-inc3)
+Backup:            /mnt/offsite/web01-sda-inc3
+Kind:              incremental, merged from 1 backup(s)
+Raw data size:     402653184 bytes
+Compression:       zstd level 3
+Stored data size:  136314880 bytes
+Compression ratio: 0.338542
+Encryption:        none
+Immutability:      none
+```
 
 What the copy is written *as* comes from the options given here rather than
 from the chain, which makes this also the way to recompress a backup, change
@@ -350,7 +379,8 @@ incremental back to its parent, so the order `--source-names` gives *is* the
 chain — pass them out of order and the copy will hold the wrong blocks, with
 nothing to warn you. What the tool does check, and refuses on:
 
-- the first backup must be full, and every one after it incremental;
+- the first backup may be full or incremental, but every one after it must
+  be incremental;
 - all of them must describe the same disk (same sector size and sector count);
 - the new backup may not be one of the chain, when the destination storage is
   the same one the chain is read from — that would overwrite what is being
@@ -736,7 +766,7 @@ A hold given with `--retention-till` is reported as a `retention_till` string,
 the hold they were asked for the same way.
 
 `copy` reports the chain it merged alongside the properties of the backup it
-wrote:
+wrote; `kind` is `incremental` when the chain starts with one:
 
 ```console
 $ abr-vmdk-tool.sh copy --json --folder /srv/backups \

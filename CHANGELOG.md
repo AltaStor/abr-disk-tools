@@ -12,6 +12,13 @@ On `main`, not in any release yet.
 
 ### Added
 
+- `copy` of a single backup, full or incremental, and of a chain that starts
+  with an incremental, in both tools. The new backup is of the same kind as the
+  first one of the chain; several incrementals merge into one incremental of
+  the first one's parent, which `restore --force` applies like any other. A
+  second repository, and a disk restored from it, can so be kept up to date
+  one new backup at a time rather than by copying the whole disk again. Under
+  `--json`, `kind` reports `incremental` for such a copy.
 - `--retention-till DATE`, in `backup`, `copy` and `retention` of both tools:
   hold a backup under S3 Object Lock until a moment given in UTC, as
   `YYYY-MM-DDTHH:MM:SSZ`, rather than for `--retention` days counted from the

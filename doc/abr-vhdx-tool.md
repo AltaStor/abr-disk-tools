@@ -577,7 +577,9 @@ The period is counted from the moment the command runs, so it states what the
 backup has left rather than what it was originally given. `--retention-till`
 names the moment the hold ends instead, so every disk of a VM can be given the
 same date. All three objects a backup is made of (`.abrd`, `.abri` and `.abrm`) are put under the same
-retention.
+retention. A name that holds only metadata, such as a manifest of a whole VM
+that `meta_save` stores next to the backups of its disks, has its `.abrm` held
+on its own; a name that holds neither a backup nor metadata is an error.
 
 **What the storage will accept is its call, not the tool's.** Extending a hold
 works in either mode. Shortening or lifting one does not: a compliance hold can
@@ -602,6 +604,8 @@ here and in the results of `backup` and `copy`.
 Store a metadata blob alongside a backup — for example the JSON manifest a
 backup server keeps about the VM and its disk. The blob is opaque to the tool;
 it is stored and returned byte for byte.
+The name does not have to hold a backup: metadata may also be stored on its own,
+and [retention](#retention) holds it under Object Lock the same way.
 
 ```
 abr-vhdx-tool.exe meta_save [options]

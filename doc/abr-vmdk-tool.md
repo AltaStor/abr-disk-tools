@@ -532,6 +532,12 @@ under the same retention, since a backup is only held as firmly as its least
 protected object. The metadata blob is optional, so a backup that never had a
 `meta_save` simply has nothing to hold under that key.
 
+A name may also hold only metadata, with no backup under it, such as a manifest
+of a whole VM that `meta_save` stores next to the backups of its disks.
+`retention` holds the `.abrm` of such a name on its own. The index decides
+which of the two a name is: with `.abri` there, `.abrd` has to be there as well,
+and a name that holds neither a backup nor metadata is an error.
+
 ```
 $ abr-vmdk-tool.sh retention --mode s3 --folder backups --name web01-sda \
       --immutable compliance --retention 200
@@ -563,6 +569,8 @@ the storage's own error for each object it could not update.
 Store a metadata blob alongside a backup — for example the JSON manifest a
 backup server keeps about the disk. The blob is opaque to the tool; it is
 stored and returned byte-for-byte.
+The name does not have to hold a backup: metadata may also be stored on its own,
+and [retention](#retention) holds it under Object Lock the same way.
 
 ```
 abr-vmdk-tool.sh meta_save [options]

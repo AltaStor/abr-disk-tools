@@ -38,6 +38,15 @@ On `main`, not in any release yet.
   PowerShell 5.1 may log. The Hyper-V test scripts now pass every key through
   `--stdin-keys`.
 
+### Fixed
+
+- `retention` on a name that holds only metadata, such as a VM manifest stored
+  with `meta_save` next to the backups of its disks, held the `.abrm` but then
+  failed with NoSuchKey on the `.abrd` and `.abri` it never had. The index now
+  decides what a name holds: with it, `.abrd` and `.abri` are held as before;
+  without it, the `.abrm` alone is. A name that holds neither, or an index
+  without its data, is reported as such.
+
 ### Changed
 
 - `abr-vhdx-tool.exe` is built against the Universal C Runtime (UCRT) rather

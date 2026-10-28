@@ -116,15 +116,7 @@ int Tool::runCopy(const std::string& programName, int argc, char* argv[])
 
     const Abr::BackupInfo& base = chain.backups.front()->getInfo();
 
-    // A read never crosses a data range, so a buffer as large as the largest
-    // block any of them stores is as much as one read can use.
-    uint32_t bufferSize = 0;
-    for (const auto& pBackup : chain.backups) {
-        bufferSize = std::max(bufferSize, pBackup->getInfo().maxDataBlock);
-    }
-    if (bufferSize == 0) {
-        bufferSize = kDefaultChunkSize;
-    }
+    const uint32_t bufferSize = chainBufferSize(chain);
 
     Abr::BackupInfo info = {};
     info.sectorSize = base.sectorSize;

@@ -70,8 +70,6 @@ namespace Tool
 
     bool copyToBackup(IDiskReader& reader, Abr::IBackup& backup, uint32_t bufferSize,
                       bool linePerUpdate);
-    bool copyFromBackup(Abr::IRestore& restore, IDiskWriter& writer, uint32_t bufferSize,
-                        bool linePerUpdate);
 
     // Every backup of the chain stays open for the whole copy, since a block may
     // have to be read from any of them. Closing them from one place keeps the error
@@ -160,6 +158,24 @@ namespace Tool
     bool copyChainToBackup(BackupChain& chain, const std::vector<MergedPiece>& plan,
                            uint64_t total, Abr::IBackup& backup, uint32_t bufferSize,
                            bool linePerUpdate);
+    bool copyChainToDisk(BackupChain& chain, const std::vector<MergedPiece>& plan,
+                         uint64_t total, IDiskWriter& writer, uint32_t bufferSize,
+                         bool linePerUpdate);
     bool openChain(Abr::IBackupManager& manager, const StorageOptions& source,
                    const std::vector<std::string>& names, BackupChain& chain);
+
+    // The largest block any backup of the chain stores, which is as much as one read can use.
+    uint32_t chainBufferSize(const BackupChain& chain);
+
+    // Whether restore was given what it applies in one way only: one backup by --name, or a
+    // chain by --source-names, read from the storage the plain storage options describe.
+    bool checkRestoreNames(const CommonOptions& options);
+
+    // Opens what restore applies and works out where every block of it comes from, refusing
+    // an incremental at the start of it unless --force says the target holds its parent.
+    bool openRestoreChain(Abr::IBackupManager& manager, const CommonOptions& options,
+                          BackupChain& chain, std::vector<MergedPiece>& plan, uint64_t& total);
+
+    // How restore names what it applied: the backup, or the storage and the chain read from it.
+    std::string restoredFrom(const CommonOptions& options);
 }

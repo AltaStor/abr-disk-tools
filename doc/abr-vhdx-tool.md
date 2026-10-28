@@ -291,10 +291,11 @@ abr-vhdx-tool.exe restore [options]
 
 | Option | Argument | Meaning |
 | --- | --- | --- |
-| `-n`, `--name` | `NAME` | Backup name. **Required.** |
+| `-n`, `--name` | `NAME` | Backup name. **Required** unless `--source-names` is given. |
+| `--source-names` | `LIST` | Comma-separated chain to restore in one run in place of `--name`: the backup to start from first, full or incremental, then the incrementals taken on top of it in the order they were taken (see below). |
 | `-t`, `--target` | `PATH` | Target file, disk or volume to restore to. Required unless `--vhdx` is given. |
 | `-k`, `--key` | `KEY` | Decryption key. Required if the backup was made with `--key`; omit for an unencrypted backup. A missing or wrong key is refused before the target is opened, so no virtual disk is created for it. |
-| `-f`, `--force` | — | Apply an incremental backup onto a target that already holds its parent. |
+| `-f`, `--force` | — | Apply an incremental backup, or a chain that starts with one, onto a target that already holds its parent. |
 
 Plus the [storage options](#storage-options) and, when restoring to a virtual
 disk, the [virtual disk options](#virtual-disk-hyper-v-options).
@@ -323,7 +324,28 @@ target started empty). To apply one:
 
 The target is then kept up to date by applying every incremental taken
 afterwards the same way, one at a time and in the order they were taken, or
-all of them at once as a single incremental merged by [copy](#copy).
+several at once.
+
+`--source-names` restores a chain in one run, in place of `--name`: the backup
+to start from first, then the incrementals taken on top of it in the order
+they were taken. It is the same list, checked the same way, as [copy](#copy)
+takes. Each block is written once, as the last backup that changed it holds
+it, so the target goes straight to the state at the end of the chain without
+being written over once per backup. A chain that starts with a full backup
+restores a whole disk; one that starts with an incremental is applied with
+`--force`, like a single incremental, onto a target that holds the parent of
+its first backup. The chain is read from the storage the
+[storage options](#storage-options) describe, and decrypted with `--key`; the
+`--source-<...>` storage options belong to `copy` and are refused here. Under
+`--json` a chain is reported as `copy` reports one, with `source`,
+`source_names` and `merged_from` in place of `backup` and `name`.
+
+```
+> abr-vhdx-tool.exe restore --folder D:\Backups --path web01 ^
+    --source-names disk0-full,disk0-inc1,disk0-inc2 --target D:\Restore\disk0.img
+100%
+Restored 'D:\Backups/web01' (disk0-full, disk0-inc1, disk0-inc2) to 'D:\Restore\disk0.img'
+```
 
 Restoring to an existing file target without `--force` empties it first; with
 `--force` (applying an incremental) the existing content is kept and only the

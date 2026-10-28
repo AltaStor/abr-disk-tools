@@ -7,6 +7,8 @@
 
 #include <sstream>
 
+#include "tool_backup.h"
+
 // Abr::immutabilityModeName lives here.
 // It kept out of tool_json.h on purpose:
 // s3_backup.h pulls in <aws/core/Aws.h> and <aws/s3/S3Client.h>,
@@ -123,6 +125,18 @@ std::string Tool::folderImmutability(const Abr::BackupFolderInfo& folder)
     }
     return std::string(Abr::immutabilityModeName(folder.m_immutabilityCurrent))
         + ", new backups retained for " + std::to_string(folder.m_immutabilityDays) + " day(s)";
+}
+
+void Tool::addRestoredFrom(JsonObject& json, const CommonOptions& options)
+{
+    if (options.sourceNames.empty()) {
+        json.addString("backup", backupLocation(options.storage));
+        json.addString("name", options.storage.name);
+        return;
+    }
+    json.addString("source", storageLocation(options.storage));
+    json.addStrings("source_names", options.sourceNames);
+    json.addNumber("merged_from", options.sourceNames.size());
 }
 
 void Tool::addRequestedImmutability(JsonObject& json, const CommonOptions& options)

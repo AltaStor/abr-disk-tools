@@ -170,53 +170,6 @@ bool Tool::copyToBackup(IDiskReader& reader, Abr::IBackup& backup, uint32_t buff
     return true;
 }
 
-bool Tool::copyFromBackup(Abr::IRestore& restore, IDiskWriter& writer, uint32_t bufferSize,
-                    bool linePerUpdate)
-{
-    std::vector<Abr::Range> ranges;
-    if (!restore.getDataRanges(ranges)) {
-        std::cerr << "Error: failed to read backup data ranges\n";
-        return false;
-    }
-
-    uint64_t total = 0;
-    for (const auto& range : ranges) {
-        total += range.length;
-    }
-
-    ProgressPrinter progress(total, linePerUpdate);
-    std::vector<uint8_t> buf(bufferSize);
-
-    for (uint32_t i = 0; i < ranges.size(); ++i) {
-        uint32_t offset = 0;
-        uint32_t left = ranges[i].length;
-
-        while (left > 0) {
-            uint32_t count = std::min(bufferSize, left);
-
-            if (interrupted()) {
-                return false;
-            }
-
-            if (!restore.loadDataRange(i, buf.data(), count, offset)) {
-                std::cerr << "Error: failed to load data range " << i << "\n";
-                return false;
-            }
-
-            if (!writer.write(ranges[i].offset + offset, count, buf.data())) {
-                return false;
-            }
-
-            offset += count;
-            left -= count;
-            progress.advance(count);
-        }
-    }
-
-    progress.finish();
-    return writer.finish();
-}
-
 // Works out where every block of the merged image comes from, without reading
 // any data: what the copy loop below then does is drive the plan.
 bool Tool::buildCopyPlan(BackupChain& chain, std::vector<MergedPiece>& plan, uint64_t& total)
@@ -300,6 +253,44 @@ bool Tool::copyChainToBackup(BackupChain& chain, const std::vector<MergedPiece>&
     return true;
 }
 
+// The same plan as copyChainToBackup drives, written to a disk instead: each block once,
+// from the backup of the chain that changed it last, rather than once per backup that holds it.
+bool Tool::copyChainToDisk(BackupChain& chain, const std::vector<MergedPiece>& plan, uint64_t total,
+                           IDiskWriter& writer, uint32_t bufferSize, bool linePerUpdate)
+{
+    ProgressPrinter progress(total, linePerUpdate);
+    std::vector<uint8_t> buf(bufferSize);
+
+    for (const auto& piece : plan) {
+        uint32_t done = 0;
+
+        while (done < piece.length) {
+            uint32_t count = std::min(bufferSize, piece.length - done);
+
+            if (interrupted()) {
+                return false;
+            }
+
+            if (!chain.backups[piece.backup]->loadDataRange(piece.range, buf.data(), count,
+                                                            piece.offset + done)) {
+                std::cerr << "Error: failed to load data range " << piece.range << " of backup '"
+                          << chain.names[piece.backup] << "'\n";
+                return false;
+            }
+
+            if (!writer.write(piece.origOffset + done, count, buf.data())) {
+                return false;
+            }
+
+            done += count;
+            progress.advance(count);
+        }
+    }
+
+    progress.finish();
+    return writer.finish();
+}
+
 // Opens the chain and checks it is one: a full backup or an incremental, then incrementals
 // of the same disk.
 // Nothing links an incremental to its parent in the format, so the order
@@ -353,4 +344,76 @@ bool Tool::openChain(Abr::IBackupManager& manager, const StorageOptions& source,
     }
 
     return true;
+}
+
+uint32_t Tool::chainBufferSize(const BackupChain& chain)
+{
+    // A read never crosses a data range, so a buffer as large as the largest
+    // block any of them stores is as much as one read can use.
+    uint32_t bufferSize = 0;
+    for (const auto& pBackup : chain.backups) {
+        bufferSize = std::max(bufferSize, pBackup->getInfo().maxDataBlock);
+    }
+    return bufferSize ? bufferSize : kDefaultChunkSize;
+}
+
+bool Tool::checkRestoreNames(const CommonOptions& options)
+{
+    if (!options.storage.name.empty() && !options.sourceNames.empty()) {
+        std::cerr << "Error: restore takes either --name or --source-names, not both\n";
+        return false;
+    }
+
+    // Restore reads from one storage only, so a --source-<...> override would be ignored
+    // and the chain silently read from somewhere else than the caller meant.
+    const SourceStorageOptions& source = options.sourceStorage;
+
+    if (source.mode || source.folder || source.path || source.key || source.endpoint || source.region
+        || source.accessKey || source.secretKey || source.profile || source.pathStyle
+        || source.verifyTls) {
+        std::cerr << "Error: restore reads its backups from the storage --folder, --mode and --path\n"
+                  << "       describe, with --key; the --source-<...> storage options are copy's\n";
+        return false;
+    }
+    return true;
+}
+
+bool Tool::openRestoreChain(Abr::IBackupManager& manager, const CommonOptions& options,
+                            BackupChain& chain, std::vector<MergedPiece>& plan, uint64_t& total)
+{
+    const std::vector<std::string> names =
+        options.sourceNames.empty() ? std::vector<std::string>{options.storage.name} : options.sourceNames;
+
+    if (!openChain(manager, options.storage, names, chain)) {
+        return false;
+    }
+
+    // An incremental holds only what changed since its parent, and so does a chain that starts
+    // with one: restored by itself it leaves every other block untouched, an empty disk if
+    // the target started empty.
+    // Applying one onto a target that already carries its parent is legitimate, and that is what
+    // --force says.
+    if (chain.backups.front()->getInfo().incremental && !options.force) {
+        std::cerr << "Error: '" << chain.names.front()
+                  << "' is an incremental backup and holds only the blocks that changed since\n"
+                  << "       its parent. Restore the full backup to the target first, then apply\n"
+                  << "       this one to the same target with --force, or restore the whole chain\n"
+                  << "       at once with --source-names, the full backup first.\n";
+        return false;
+    }
+
+    return buildCopyPlan(chain, plan, total);
+}
+
+std::string Tool::restoredFrom(const CommonOptions& options)
+{
+    if (options.sourceNames.empty()) {
+        return "'" + backupLocation(options.storage) + "'";
+    }
+
+    std::string names;
+    for (const auto& name : options.sourceNames) {
+        names += (names.empty() ? "" : ", ") + name;
+    }
+    return "'" + storageLocation(options.storage) + "' (" + names + ")";
 }

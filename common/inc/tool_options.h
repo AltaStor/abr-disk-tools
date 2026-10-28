@@ -116,8 +116,8 @@ namespace Tool
         StorageOptions storage;
         SourceStorageOptions sourceStorage;
 
-        // The chain 'copy' merges, in the order it has to be applied: the full
-        // backup first, then each incremental on top of the one before it.
+        // The chain 'copy' merges and 'restore' applies, in the order it has to be applied:
+        // the backup to start from first, then each incremental on top of the one before it.
         std::vector<std::string> sourceNames;
 
         std::string source;

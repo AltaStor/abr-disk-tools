@@ -12,6 +12,14 @@ On `main`, not in any release yet.
 
 ### Added
 
+- `restore --source-names LIST`, in both tools: restore a chain of backups in
+  one run in place of `--name`, the backup to start from first and the
+  incrementals on top of it in order, checked as `copy` checks it. Each block is
+  written once, as the last backup that changed it holds it. A chain that
+  starts with an incremental needs `--force`, like a single one. Under `--json`
+  a chain is reported with `source`, `source_names` and `merged_from` in place
+  of `backup` and `name`. The `--source-<...>` storage options are now refused
+  by `restore` rather than ignored.
 - `copy` of a single backup, full or incremental, and of a chain that starts
   with an incremental, in both tools. The new backup is of the same kind as the
   first one of the chain; several incrementals merge into one incremental of

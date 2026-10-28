@@ -91,6 +91,10 @@ namespace Tool
     // The block of backup properties that 'backup' and 'info' both report.
     void addBackupInfo(JsonObject& json, const Abr::BackupInfo& info);
 
+    // What restore applied: the backup and its name, or the storage and the chain read from it,
+    // reported the way 'copy' reports its chain.
+    void addRestoredFrom(JsonObject& json, const CommonOptions& options);
+
     // The block of folder properties that 'list' and 'info' both report.
     void addFolderInfo(JsonObject& json, const Abr::BackupFolderInfo& folder);
 

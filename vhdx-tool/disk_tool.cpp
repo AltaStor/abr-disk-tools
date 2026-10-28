@@ -125,12 +125,18 @@ void printRestoreHelp(const std::string& programName)
               << "Options:\n"
               << "  -h, --help              Show this help message\n"
               << "      --json              Print the command result to stdout as JSON\n"
-              << "  -n, --name NAME         Backup name (required)\n"
+              << "  -n, --name NAME         Backup name (required unless --source-names)\n"
+              << "      --source-names LIST Comma-separated chain to restore at once in place\n"
+              << "                          of --name: the backup to start from first, then\n"
+              << "                          the incrementals on top of it in the order they\n"
+              << "                          were taken. Each block is written once, as the\n"
+              << "                          last backup that changed it holds it\n"
               << "  -t, --target PATH       Target file, disk or volume to restore to\n"
               << "                          (required unless --vhdx)\n"
               << "  -k, --key KEY           Decryption key (optional)\n"
-              << "  -f, --force             Apply an incremental backup onto a target that\n"
-              << "                          already holds its parent\n\n";
+              << "  -f, --force             Apply an incremental backup, or a chain that\n"
+              << "                          starts with one, onto a target that already\n"
+              << "                          holds its parent\n\n";
     printStorageOptions();
     std::cout << "\n";
     printVhdxOptions(true);
@@ -340,9 +346,13 @@ int runRestore(const std::string& programName, int argc, char* argv[])
     if (!checkStorageOptions(options.storage) || !checkDiskOptions("--target", options.target, options)) {
         return 1;
     }
-    if (options.storage.name.empty() || (options.target.empty() && options.vhdx.empty())) {
-        std::cerr << "Error: restore requires --name and either --target or --vhdx\n";
+    if ((options.storage.name.empty() && options.sourceNames.empty())
+        || (options.target.empty() && options.vhdx.empty())) {
+        std::cerr << "Error: restore requires --name or --source-names, and either --target or --vhdx\n";
         printRestoreHelp(programName);
+        return 1;
+    }
+    if (!checkRestoreNames(options)) {
         return 1;
     }
 
@@ -351,32 +361,16 @@ int runRestore(const std::string& programName, int argc, char* argv[])
         return 1;
     }
 
-    std::shared_ptr<Abr::IRestore> pRestore;
-    if (!pManager->openBackup(options.storage.path, options.storage.name, pRestore,
-                              options.storage.key)) {
-        std::cerr << "Error: failed to open backup '" << options.storage.name << "'\n";
+    // A single --name is a chain of one, so both are restored the same way.
+    BackupChain chain;
+    std::vector<MergedPiece> plan;
+    uint64_t total = 0;
+    if (!openRestoreChain(*pManager, options, chain, plan, total)) {
         return 1;
     }
 
-    const Abr::BackupInfo& info = pRestore->getInfo();
-
-    // An incremental holds only what changed since its parent, so restoring it by itself leaves
-    // every other block untouched -- an empty disk if the target started empty.
-    // Applying one onto a target that already carries the full restore is legitimate, and that is
-    // what --force says.
-    if (info.incremental && !options.force) {
-        std::cerr << "Error: '" << options.storage.name
-                  << "' is an incremental backup and holds only the blocks that changed since\n"
-                  << "       its parent. Restore the full backup to the target first, then apply\n"
-                  << "       this one to the same target with --force.\n";
-        pRestore->close();
-        return 1;
-    }
-
-    if (!checkKey(*pRestore, options.storage.name, options.storage.key)) {
-        pRestore->close();
-        return 1;
-    }
+    const Abr::BackupInfo& info = chain.backups.front()->getInfo();
+    const bool incremental = info.incremental != 0;
 
     DiskGeometry image;
     image.sectors = info.sectors;
@@ -384,8 +378,7 @@ int runRestore(const std::string& programName, int argc, char* argv[])
     image.phySectorSize = info.phySectorSize;
 
     DiskTarget target;
-    if (!openTarget(options, target, info.incremental != 0, image)) {
-        pRestore->close();
+    if (!openTarget(options, target, incremental, image)) {
         return 1;
     }
 
@@ -395,29 +388,21 @@ int runRestore(const std::string& programName, int argc, char* argv[])
         if (info.sectorSize != geometry.sectorSize) {
             std::cerr << "Error: backup sector size " << info.sectorSize
                       << " does not match target sector size " << geometry.sectorSize << "\n";
-            pRestore->close();
             return 1;
         }
         if (info.sectors != geometry.sectors) {
             std::cerr << "Error: backup holds " << info.sectors << " sectors but the target has "
                       << geometry.sectors << "\n";
-            pRestore->close();
             return 1;
         }
     }
 
     if (!target.writer->setImageSize(info.sectors * info.sectorSize)) {
-        pRestore->close();
         return 1;
     }
 
-    uint32_t bufferSize = info.maxDataBlock ? info.maxDataBlock : kDefaultChunkSize;
-    // Taken before close(), which is what invalidates the info reference.
-    const bool incremental = info.incremental != 0;
-    bool ok = copyFromBackup(*pRestore, *target.writer,
-                             alignBufferSize(bufferSize, geometry.sectorSize), options.json);
-
-    pRestore->close();
+    bool ok = copyChainToDisk(chain, plan, total, *target.writer,
+                              alignBufferSize(chainBufferSize(chain), geometry.sectorSize), options.json);
 
     // Released here rather than at the end of the scope, so that a virtual disk
     // this restore created and did not finish is gone before the failure is reported.
@@ -431,8 +416,7 @@ int runRestore(const std::string& programName, int argc, char* argv[])
 
     if (options.json) {
         JsonObject json("restore", "ok");
-        json.addString("backup", backupLocation(options.storage));
-        json.addString("name", options.storage.name);
+        addRestoredFrom(json, options);
         json.addString("target", restoreTarget);
         json.addString("kind", incremental ? "incremental" : "full");
         if (!options.vhdx.empty()) {
@@ -440,8 +424,8 @@ int runRestore(const std::string& programName, int argc, char* argv[])
         }
         json.addBool("decrypted", !options.storage.key.empty());
     } else {
-        std::cout << (incremental ? "Applied incremental '" : "Restored '")
-                  << backupLocation(options.storage) << "' to "
+        std::cout << (incremental ? "Applied incremental " : "Restored ") << restoredFrom(options)
+                  << " to "
                   << (target.created ? "new virtual disk '" : "'") << restoreTarget << "'"
                   << (options.storage.key.empty() ? "" : " (decrypted)") << "\n";
     }

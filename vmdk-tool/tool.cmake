@@ -84,10 +84,13 @@ message(STATUS "Selected VDDK_DIR: ${VDDK_DIR}")
 # against them: the library itself is bound at runtime, from wherever the launcher
 # points the loader, so the machine that compiles the tool does not have to be
 # the one that has the bundle installed.
+# Without them the tool still builds, with the SOAP API alone; -DABR_DISK_WITH_VDDK=ON
+# makes them required, as a package build that ships the VDDK path should.
 if(NOT EXISTS "${VDDK_INCLUDE_DIR}/vixDiskLib.h")
-    message(FATAL_ERROR
-        "Required VDDK headers not found: ${VDDK_INCLUDE_DIR}/vixDiskLib.h\n"
-        "Point CMake at an extracted VDDK with -DVDDK_DIR=/path/to/vddk"
+    message(STATUS
+        "VDDK headers not found at ${VDDK_INCLUDE_DIR}/vixDiskLib.h; abr-vmdk-tool is built "
+        "without the VDDK unless -DABR_DISK_WITH_VDDK=ON. Point CMake at an extracted VDDK "
+        "with -DVDDK_DIR=/path/to/vddk"
     )
 endif()
 
@@ -98,6 +101,29 @@ if(NOT EXISTS "${VDDK_LIBRARY}")
     )
 endif()
 
-# The tool is nothing without the VDDK backend, so it is asked for outright
-# rather than left to abr-disk-lib's reading of the target.
-set(ABR_DISK_WITH_VDDK ON CACHE STRING "VMware VDDK backend: AUTO, ON or OFF" FORCE)
+# vsphere-soap-lib, the SOAP API's library, finds OpenSSL and zlib with find_package, which
+# under vcpkg takes the static copies vcpkg installs for the AWS SDK. Linked into the binary,
+# a static OpenSSL then answers the VDDK's own TLS calls next to the system's shared one,
+# and the two mixed crash the first VDDK connection. The tool links the system's (ssl, crypto
+# and z in vmdk-tool/CMakeLists.txt), so find_package is pointed at those: the system paths
+# searched as they are, not re-rooted into vcpkg's tree.
+find_path(ABR_SYSTEM_OPENSSL_INCLUDE_DIR openssl/ssl.h NO_CMAKE_PATH NO_CMAKE_ENVIRONMENT_PATH NO_CMAKE_FIND_ROOT_PATH)
+find_library(ABR_SYSTEM_SSL_LIBRARY ssl NO_CMAKE_PATH NO_CMAKE_ENVIRONMENT_PATH NO_CMAKE_FIND_ROOT_PATH)
+find_library(ABR_SYSTEM_CRYPTO_LIBRARY crypto NO_CMAKE_PATH NO_CMAKE_ENVIRONMENT_PATH NO_CMAKE_FIND_ROOT_PATH)
+find_path(ABR_SYSTEM_ZLIB_INCLUDE_DIR zlib.h NO_CMAKE_PATH NO_CMAKE_ENVIRONMENT_PATH NO_CMAKE_FIND_ROOT_PATH)
+find_library(ABR_SYSTEM_ZLIB_LIBRARY z NO_CMAKE_PATH NO_CMAKE_ENVIRONMENT_PATH NO_CMAKE_FIND_ROOT_PATH)
+if(ABR_SYSTEM_OPENSSL_INCLUDE_DIR AND ABR_SYSTEM_SSL_LIBRARY AND ABR_SYSTEM_CRYPTO_LIBRARY)
+    set(OPENSSL_INCLUDE_DIR "${ABR_SYSTEM_OPENSSL_INCLUDE_DIR}" CACHE PATH "" FORCE)
+    set(OPENSSL_SSL_LIBRARY "${ABR_SYSTEM_SSL_LIBRARY}" CACHE FILEPATH "" FORCE)
+    set(OPENSSL_CRYPTO_LIBRARY "${ABR_SYSTEM_CRYPTO_LIBRARY}" CACHE FILEPATH "" FORCE)
+endif()
+if(ABR_SYSTEM_ZLIB_INCLUDE_DIR AND ABR_SYSTEM_ZLIB_LIBRARY)
+    set(ZLIB_INCLUDE_DIR "${ABR_SYSTEM_ZLIB_INCLUDE_DIR}" CACHE PATH "" FORCE)
+    set(ZLIB_LIBRARY "${ABR_SYSTEM_ZLIB_LIBRARY}" CACHE FILEPATH "" FORCE)
+    set(ZLIB_LIBRARY_RELEASE "${ABR_SYSTEM_ZLIB_LIBRARY}" CACHE FILEPATH "" FORCE)
+    set(ZLIB_LIBRARY_DEBUG "${ABR_SYSTEM_ZLIB_LIBRARY}" CACHE FILEPATH "" FORCE)
+endif()
+
+# The tool reaches VMware through the VDDK, the vSphere SOAP API, or both: abr-disk-lib
+# builds each by its own AUTO reading (the VDDK where its headers are, SOAP where its
+# submodule is), and vmdk-tool/CMakeLists.txt refuses a library with neither.

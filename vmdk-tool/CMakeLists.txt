@@ -7,6 +7,18 @@
 # VDDK_DIR and the RPATH lists used below come from tool.cmake, which
 # the top-level CMakeLists.txt read before the libraries were added.
 
+# A VMware disk is reached through the VDDK or the SOAP API; a library built with neither
+# would give a tool that handles plain files only.
+get_target_property(_abr_vmdk_tool_disk_defs abr-disk-lib INTERFACE_COMPILE_DEFINITIONS)
+if(NOT "ABR_DISK_HAVE_VDDK" IN_LIST _abr_vmdk_tool_disk_defs
+   AND NOT "ABR_DISK_HAVE_SOAP" IN_LIST _abr_vmdk_tool_disk_defs)
+    message(FATAL_ERROR
+        "abr-vmdk-tool needs the VDDK or the SOAP API, and abr-disk-lib was configured with neither.\n"
+        "Point CMake at an extracted VDDK with -DVDDK_DIR=/path/to/vddk, or fetch the vsphere-soap-lib\n"
+        "submodule with 'git submodule update --init --recursive'."
+    )
+endif()
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 

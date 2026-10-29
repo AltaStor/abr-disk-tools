@@ -5,7 +5,7 @@ backup format -- one tool per virtual disk format, all built from this tree:
 
 | Tool | Disks | Runs on | Details |
 | --- | --- | --- | --- |
-| `abr-vmdk-tool` | plain files; VMware VMDKs, local or on an ESXi host or a vCenter, through the VDDK | Linux | [vmdk-tool/README.md](vmdk-tool/README.md), [manual](doc/abr-vmdk-tool.md) |
+| `abr-vmdk-tool` | plain files; VMware VMDKs, local or on an ESXi host or a vCenter, through the VDDK or the vSphere SOAP API | Linux | [vmdk-tool/README.md](vmdk-tool/README.md), [manual](doc/abr-vmdk-tool.md) |
 | `abr-vhdx-tool` | plain files, disks and volumes; Hyper-V VHD, VHDX and AVHDX, through the Windows virtual disk service | Windows 10 / Server 2016 and later | [vhdx-tool/README.md](vhdx-tool/README.md), [manual](doc/abr-vhdx-tool.md) |
 
 They are the data movers a backup server invokes once per disk. Every tool has
@@ -95,12 +95,17 @@ Common to every build:
 ### Linux (`linux`): abr-vmdk-tool
 
 - a C++20 compiler
-- the VMware Virtual Disk Development Kit (VDDK) -- not fetched by anything
+- for the VDDK API, the VMware Virtual Disk Development Kit (VDDK) -- not fetched by anything
   here. Broadcom gates it behind a support account, so download the SDK tarball
   yourself and unpack it into `vddk/` beside the repository checkout, so that
   `../vddk/include/vixDiskLib.h` exists, or name it with `-DVDDK_DIR=`. Only the
   **headers** are needed to build; the library is loaded at run time (see
-  [vmdk-tool/README.md](vmdk-tool/README.md#vddk-and-the-library-search-path))
+  [vmdk-tool/README.md](vmdk-tool/README.md#vddk-and-the-library-search-path)).
+  Without them the tool is built with the SOAP API alone
+- for the SOAP API, abr-disk-lib's `vsphere-soap-lib` submodule, which the
+  `--recursive` above fetches, and Boost 1.75 or later (Asio, Beast, JSON) and
+  pugixml, found installed (`CMAKE_PREFIX_PATH`) or else fetched by the
+  configure
 - `libcrc32c`, installed on the system or resolvable through vcpkg
 - system development packages: `libssl-dev`, `libcurl4-openssl-dev`,
   `libc-ares-dev`, `zlib1g-dev`, `libzstd-dev`
@@ -185,6 +190,8 @@ The parameters:
 | `ABR_BUILD_VMDK_TOOL`, `ABR_BUILD_VHDX_TOOL` | `AUTO`, `ON`, `OFF` | `AUTO` | Whether to build that tool. `AUTO` is "when the target is one it supports"; `ON` for any other target is an error. |
 | `ABR_MINGW_TRIPLE` | a target triple | `x86_64-w64-mingw32ucrt` | `windows-cross` only: the MinGW-w64 compiler, `<triple>-g++` on `PATH`. It has to target UCRT. |
 | `VDDK_DIR` | a path | `../vddk`, beside the repository | The VDDK, for `abr-vmdk-tool`. Only `include/vixDiskLib.h` has to exist to build. |
+| `ABR_DISK_WITH_VDDK`, `ABR_DISK_WITH_SOAP` | `AUTO`, `ON`, `OFF` | `AUTO` | The two ways `abr-vmdk-tool` reaches VMware, `--api vddk` and `--api soap`. `AUTO` builds the VDDK where its headers are and SOAP where its submodule is, on Linux; `ON` makes a missing one an error. The tool needs at least one. |
+| `VSPHERE_SOAP_LIB_DIR` | a path | `abr-disk-lib/vsphere-soap-lib/` | Another checkout of vsphere-soap-lib, for a change to both at once. |
 | `ABR_BACKUPLIB_DIR` | a path | `abr-backup-lib/` | Another checkout of the backup library, for a change to both at once. |
 | `ABR_DISKLIB_DIR` | a path | `abr-disk-lib/` | Another checkout of the disk library, for a change to both at once. |
 | `ABR_BACKUP_BUILD_UNIT_TESTS` | `ON`, `OFF` | `ON` native, `OFF` cross and MSVC | backuplib's unit tests. |

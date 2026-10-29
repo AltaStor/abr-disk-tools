@@ -2,7 +2,8 @@
 
 `abr-vmdk-tool` backs up and restores plain files and VMware virtual disks --
 a local VMDK, or a VM's disk on an ESXi host or a vCenter -- into the `.abr`
-backup format, through the VMware VDDK. It is the data mover the backup server
+backup format, through the VMware VDDK or, with `--api soap`, the vSphere SOAP
+API and plain HTTPS. It is the data mover the backup server
 invokes once per disk, with the same commands, the same options apart from the
 hypervisor-specific ones, and the same `--json` results as the other tools
 built from this repository; they read and write the same repositories.
@@ -59,7 +60,10 @@ Options are per-command; `abr-vmdk-tool.sh <command> --help` is authoritative.
 Storage is selected with `--mode file|s3` plus `--folder`, and `--path` for a
 subfolder within it. Only `backup`, `restore` and the VMDK-facing paths touch
 the VDDK; `copy`, `list`, `info`, `verify`, `remove` and the `meta_*` commands
-work without a bundle present.
+work without a bundle present, and so does everything with `--api soap`, which
+needs no VMware library at all. What SOAP can and cannot do, such as backing
+up running VMs through a snapshot export and restoring whole disks only, is in
+the manual, under "Over the SOAP API".
 
 `copy` reads a full backup and the incrementals taken on top of it and writes
 what they add up to as one new full backup, in the same repository or in

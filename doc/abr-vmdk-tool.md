@@ -1,8 +1,8 @@
 # abr-vmdk-tool — Command Reference
 
 `abr-vmdk-tool` moves one disk at a time between a source (a local file, a
-block device, or a VMware VMDK reached through VDDK) and the `.abr` backup
-format, in either direction. 
+block device, or a VMware VMDK reached through the VDDK or the vSphere SOAP
+API) and the `.abr` backup format, in either direction. 
 This document is the manual for the commands and their options. 
 For how to build, install and run the tool, see the
 [top-level README](../README.md); everything below assumes the launcher,
@@ -51,7 +51,7 @@ full version of the package it came in (`26.11~pre+31.g6a11c8981539`, say), or
 ## Contents
 
 - [Storage options](#storage-options)
-- [VMDK (VDDK) options](#vmdk-vddk-options)
+- [VMDK options](#vmdk-options)
 - [Commands](#commands)
   - [backup](#backup)
   - [restore](#restore)
@@ -72,7 +72,7 @@ full version of the package it came in (`26.11~pre+31.g6a11c8981539`, say), or
 These apply to every command; they select where backups live. `copy`, `list`,
 `info`, `verify`, `remove`, `retention` and the `meta_*` commands act on storage
 alone and never touch the VDDK. `backup` and `restore` also need one side of a
-disk, described under [VMDK (VDDK) options](#vmdk-vddk-options).
+disk, described under [VMDK options](#vmdk-options).
 
 `copy` reads and writes storage at the same time, so it takes a second set of
 these, prefixed `--source-` and described under [copy](#copy).
@@ -104,7 +104,7 @@ A backup's full location, as printed in reports and JSON, is
 Every process on the host can read another process's command line, and audit
 logs record it. A secret given as `--key`, `--secret-key`, `--source-key`,
 `--source-secret-key` or `--password` (the vCenter/ESXi password, see
-[VMDK (VDDK) options](#vmdk-vddk-options)) is therefore exposed for the whole
+[VMDK options](#vmdk-options)) is therefore exposed for the whole
 run. With
 `--stdin-keys`, the tool reads them from standard input instead, one per
 line as `name=value`:
@@ -129,31 +129,93 @@ $ printf 'key=%s\nsecret-key=%s\n' "$KEY" "$S3_SECRET" |
 The access key (`--access-key`) is an identifier rather than a secret and
 stays on the command line.
 
-## VMDK (VDDK) options
+## VMDK options
 
 Shared by `backup` and `restore`. Passing `--vmdk` switches the disk side of
 the command (source for `backup`, target for `restore`) from a plain file to
-a VMDK reached through VDDK. Without `--host`, `--vmdk` still goes through
-VDDK but opens the path as a local VMDK file rather than one on a vSphere
-host — useful for VMDKs already exported to local disk. With `--host`, the
-options below describe the vCenter/ESXi connection.
+a VMDK, reached one of two ways that `--api` chooses:
+
+- `vddk`, VMware's Virtual Disk Development Kit, the default wherever the tool
+  is built with it. Without `--host`, `--vmdk` still goes through VDDK but
+  opens the path as a local VMDK file rather than one on a vSphere host,
+  useful for VMDKs already exported to local disk.
+- `soap`, the vSphere Web Services (SOAP) API and plain HTTPS, through
+  vsphere-soap-lib. It needs no VMware library on the host, and is always
+  remote. What it can and cannot do is under
+  [Over the SOAP API](#over-the-soap-api).
+
+With `--host`, the options below describe the vCenter/ESXi connection.
 
 | Option | Argument | Meaning |
 | --- | --- | --- |
-| `--vmdk` | `PATH` | VMDK to read (backup) or write (restore), in place of `--source`/`--target`. Path syntax follows VDDK: a datastore path like `[datastore1] vm/vm.vmdk` for a host-backed disk, or a local filesystem path when `--host` is omitted. |
-| `--host` | `HOST` | ESXi or vCenter host to connect to. Omit to open `--vmdk` as a local file instead. |
+| `--vmdk` | `PATH` | VMDK to read (backup) or write (restore), in place of `--source`/`--target`. A datastore path like `[datastore1] vm/vm.vmdk` for a host-backed disk, or a local filesystem path when `--host` is omitted (VDDK only). A SOAP restore also takes a bare file name; see below. |
+| `--api` | `vddk` \| `soap` | How the disk is reached. Default: `vddk` when the tool is built with the VDDK, `soap` otherwise. An API the build lacks is refused. |
+| `--host` | `HOST` | ESXi or vCenter host to connect to. Omit to open `--vmdk` as a local file instead (VDDK only). |
 | `--user` | `NAME` | User name on the host. Required with `--host`. |
 | `--password` | `PASS` | Password on the host. Required with `--host`, here or as `password=` with [`--stdin-keys`](#secrets-on-standard-input). |
-| `--vm` | `SPEC` | Managed object reference of the VM, e.g. `vm-1234`. Required with `--host`. |
-| `--thumbprint` | `PRINT` | SSL certificate thumbprint of the host, for hosts with a certificate that won't otherwise validate. |
+| `--vm` | `SPEC` | Managed object reference of the VM, e.g. `vm-1234`. Required with `--host`, except for a SOAP restore to a new disk that stays unattached. |
+| `--thumbprint` | `PRINT` | SSL certificate thumbprint of the host, for hosts with a certificate that won't otherwise validate. Over SOAP it replaces the check of the certificate chain, which is otherwise made. |
 | `--port` | `PORT` | Host port. Default: `443`. |
-| `--nfc-port` | `PORT` | NFC port on the ESXi host used for the actual data transfer. Default: `902`. |
-| `--transport` | `MODES` | Colon-separated VDDK transport mode list, tried in order, e.g. `nbdssl:nbd:hotadd:san`. Left to VDDK's own default when omitted. |
-| `--snapshot` | `MOREF` | Managed object reference of the VM snapshot to read from/write to, instead of the VM's current point. |
+| `--snapshot` | `MOREF` | Managed object reference of the VM snapshot to read from/write to, instead of the VM's current point. Over SOAP, backups only. |
+| `--nfc-port` | `PORT` | VDDK only. NFC port on the ESXi host used for the actual data transfer. Default: `902`. |
+| `--transport` | `MODES` | VDDK only. Colon-separated VDDK transport mode list, tried in order, e.g. `nbdssl:nbd:hotadd:san`. Left to VDDK's own default when omitted. |
+| `--quiesce` | — | SOAP only. Quiesce the guest file systems through VMware Tools when snapshotting a running VM for a backup. |
+| `--cluster` | `NAME` | SOAP only. Cluster or standalone host that the temporary VM of a new disk runs on. Needed only when the datastore is shared by more than one. |
+| `--resource-pool` | `NAME` | SOAP only. Resource pool of that cluster or host for the same. Default: its root pool. |
 
 `--host` requires `--user`, a password and `--vm` together; the tool checks
 this before connecting and reports whichever is missing rather than failing
-deep inside VDDK.
+deep inside VDDK. An option of the other API is refused rather than ignored.
+
+### Over the SOAP API
+
+**Backup.** A powered-off VM whose disk has no snapshots is read directly,
+with ranged HTTPS reads of the disk's file. A running VM, a VM with snapshots,
+or a `--snapshot` is read through vSphere's export of a snapshot: ESXi locks
+a running VM's files, and the export is how vSphere hands out the disk of a
+snapshot, its delta files merged. Without `--snapshot` the tool takes a
+snapshot of its own for the run and removes it afterwards, so a running VM is
+backed up crash-consistent, or quiesced with `--quiesce`.
+
+The export streams the disk whole and in order. An incremental of a running
+VM is therefore as fast as a full one: all of the disk's data is downloaded,
+and only what changed is kept.
+
+**Incrementals.** Changed block tracking (CBT) has to be on for the VM. A SOAP
+backup reports the change id its next incremental is taken against, as
+`Next change id` and as `next_change_id` under `--json`, since the snapshot
+it was taken at is the tool's own:
+
+```
+$ printf 'password=%s\n' "$VC_PASSWORD" |
+    abr-vmdk-tool.sh backup --api soap --folder /srv/backups --name web01-sda \
+    --vmdk '[datastore1] web01/web01.vmdk' --host vc.example.com \
+    --user backup --stdin-keys --vm vm-1234
+...
+Next change id:    52 17 4e 81 83 bd 5e 15-6e ae 80 c1 55 b6 50 41/55
+```
+
+**Restore.** SOAP has no way to write into part of a disk, so a SOAP restore
+writes a whole disk: a full backup, or a chain that starts with one
+(`--source-names`). A single incremental on its own is refused; use
+`--api vddk` for that. `--vm` and `--vmdk` choose where the disk goes:
+
+| `--vm` | `--vmdk` | What happens |
+| --- | --- | --- |
+| given | `[ds] dir/name.vmdk`, a disk of that VM | The disk is overwritten in place. It keeps its device and file, and the backup has to be its size. |
+| given | a file name, or any other `[ds] dir/name.vmdk` | A new disk is created and attached to the VM. A bare name puts it in the VM's folder. |
+| not given | `[ds] dir/name.vmdk` | A new disk is created at that path, attached to nothing. |
+
+The VM has to be powered off. A new disk is thin, uploaded through a temporary
+VM that is deleted afterwards, and is reported as created. A path that is
+already taken is refused rather than overwritten.
+
+Overwriting in place needs a disk without snapshots on a datastore with files,
+so not vSAN or vVols. The disk ends up fully allocated, since every byte is
+written, zeros included. ESXi does not see the write, so the tool resets the
+VM's CBT afterwards; CBT belongs to the whole VM, so every disk of it needs a
+full backup next. A restore that fails partway leaves the disk partly
+overwritten until a restore of it succeeds.
 
 ## Commands
 
@@ -179,7 +241,7 @@ abr-vmdk-tool.sh backup [options]
 | `--retention-till` | `DATE` | Hold the backup until this moment instead of for a number of days: a date and time in UTC, `YYYY-MM-DDTHH:MM:SSZ` (a space may take the place of the `T`, and the `Z` may be left out). Seconds are required, and a moment already passed is refused. Mutually exclusive with `--retention`. |
 
 Plus the [storage options](#storage-options) and, when backing up a VMDK, the
-[VMDK options](#vmdk-vddk-options).
+[VMDK options](#vmdk-options).
 
 Whether the storage can actually deliver the requested immutability mode and
 period is decided by the bucket, not by this tool — see `info` for what a
@@ -238,7 +300,7 @@ abr-vmdk-tool.sh restore [options]
 | `-f`, `--force` | — | Apply an incremental backup, or a chain that starts with one, onto a target that already holds its parent (see below). |
 
 Plus the [storage options](#storage-options) and, when restoring to a VMDK,
-the [VMDK options](#vmdk-vddk-options).
+the [VMDK options](#vmdk-options).
 
 An incremental backup holds only the blocks that changed since its parent —
 restoring it alone leaves every other block untouched (an empty disk, if the
@@ -786,6 +848,10 @@ $ abr-vmdk-tool.sh retention --json --mode s3 --folder backups --name web01-sda 
 A hold given with `--retention-till` is reported as a `retention_till` string,
 `YYYY-MM-DDTHH:MM:SSZ`, in place of `retention_days`. `backup` and `copy` report
 the hold they were asked for the same way.
+
+A `backup` read with `--api soap` from a VM with changed block tracking also
+reports `next_change_id`, the change id its next incremental is taken against
+(see [Over the SOAP API](#over-the-soap-api)).
 
 `copy` reports the chain it merged alongside the properties of the backup it
 wrote; `kind` is `incremental` when the chain starts with one:

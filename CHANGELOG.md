@@ -12,6 +12,17 @@ On `main`, not in any release yet.
 
 ### Added
 
+- `abr-vmdk-tool --api soap`: VMware disks over the vSphere SOAP API and HTTPS,
+  through vsphere-soap-lib, with no VDDK on the host. Backups of powered-off
+  and running VMs, at a `--snapshot` or at a snapshot of the tool's own, full
+  or incremental by changed block tracking, reporting `next_change_id` for the
+  next incremental. Restores of a whole disk, a full backup or a chain that
+  starts with one, overwriting a VM's disk in place or creating a new one,
+  attached to a VM or placed at a datastore path. `--quiesce`, `--cluster` and
+  `--resource-pool` go with it. `--api vddk` stays the default where the
+  tool is built with the VDDK, and the tool now builds with either or both
+  (`ABR_DISK_WITH_VDDK`, `ABR_DISK_WITH_SOAP`).
+
 - `restore --source-names LIST`, in both tools: restore a chain of backups in
   one run in place of `--name`, the backup to start from first and the
   incrementals on top of it in order, checked as `copy` checks it. Each block is

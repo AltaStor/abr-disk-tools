@@ -153,7 +153,7 @@ With `--host`, the options below describe the vCenter/ESXi connection.
 | `--host` | `HOST` | ESXi or vCenter host to connect to. Omit to open `--vmdk` as a local file instead (VDDK only). |
 | `--user` | `NAME` | User name on the host. Required with `--host`. |
 | `--password` | `PASS` | Password on the host. Required with `--host`, here or as `password=` with [`--stdin-keys`](#secrets-on-standard-input). |
-| `--vm` | `SPEC` | Managed object reference of the VM, e.g. `vm-1234`. Required with `--host`, except for a SOAP restore to a new disk that stays unattached. |
+| `--vm` | `SPEC` | The VM, as the VDDK's VM spec `moref=<id>` with the VM's managed object reference, e.g. `moref=vm-1234`. The VDDK refuses a bare `vm-1234`; SOAP takes either form. Required with `--host`, except for a SOAP restore to a new disk that stays unattached. |
 | `--thumbprint` | `PRINT` | SSL certificate thumbprint of the host, for hosts with a certificate that won't otherwise validate. Over SOAP it replaces the check of the certificate chain, which is otherwise made. |
 | `--port` | `PORT` | Host port. Default: `443`. |
 | `--snapshot` | `MOREF` | Managed object reference of the VM snapshot to read from/write to, instead of the VM's current point. Over SOAP, backups only. |
@@ -190,7 +190,7 @@ it was taken at is the tool's own:
 $ printf 'password=%s\n' "$VC_PASSWORD" |
     abr-vmdk-tool.sh backup --api soap --folder /srv/backups --name web01-sda \
     --vmdk '[datastore1] web01/web01.vmdk' --host vc.example.com \
-    --user backup --stdin-keys --vm vm-1234
+    --user backup --stdin-keys --vm moref=vm-1234
 ...
 Next change id:    52 17 4e 81 83 bd 5e 15-6e ae 80 c1 55 b6 50 41/55
 ```
@@ -274,7 +274,7 @@ An incremental backup:
 $ printf 'password=%s\n' "$VC_PASSWORD" |
     abr-vmdk-tool.sh backup --folder /srv/backups --name web01-sda-inc1 \
     --vmdk '[datastore1] web01/web01.vmdk' --host vc.example.com \
-    --user backup --stdin-keys --vm vm-1234 \
+    --user backup --stdin-keys --vm moref=vm-1234 \
     --type incremental --change-id 52/1234
 ```
 

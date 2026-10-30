@@ -111,7 +111,7 @@ void printVmdkOptions()
               << "      --user NAME         User name on the host\n"
               << "      --password PASS     Password on the host; password= with\n"
               << "                          --stdin-keys keeps it off the command line\n"
-              << "      --vm SPEC           VM spec (like \"vm-XXXX\")\n"
+              << "      --vm SPEC           VM spec, like \"moref=vm-XXXX\"\n"
               << "      --thumbprint PRINT  SSL certificate thumbprint of the host\n"
               << "      --port PORT         Host port (default: 443)\n"
               << "      --snapshot MOREF    Managed object reference of the VM snapshot\n"

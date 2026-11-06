@@ -58,6 +58,7 @@ enum LongOnlyOption {
     kOptCluster,
     kOptResourcePool,
     kOptQuiesce,
+    kOptVddkConfig,
 };
 
 const Cli::LongOption kToolLongOptions[] = {
@@ -76,6 +77,7 @@ const Cli::LongOption kToolLongOptions[] = {
     {"cluster",     Cli::Argument::Required, kOptCluster},
     {"resource-pool", Cli::Argument::Required, kOptResourcePool},
     {"quiesce",     Cli::Argument::None,     kOptQuiesce},
+    {"vddk-config", Cli::Argument::Required, kOptVddkConfig},
     {nullptr,       Cli::Argument::None,     0},
 };
 
@@ -118,6 +120,7 @@ void printVmdkOptions()
               << "  VDDK only:\n"
               << "      --nfc-port PORT     NFC port on the ESXi host (default: 902)\n"
               << "      --transport MODES   Transport modes, e.g. \"nbdssl:nbd:hotadd:san\"\n"
+              << "      --vddk-config FILE  VDDK configuration file\n"
               << "  SOAP only:\n"
               << "      --quiesce           Quiesce the guest when snapshotting a running VM\n"
               << "      --cluster NAME      Cluster or host a new disk is uploaded through\n"
@@ -257,6 +260,7 @@ bool setToolOption(Options& options, int value, const std::string& argument)
         case kOptCluster: options.cluster = argument; break;
         case kOptResourcePool: options.resourcePool = argument; break;
         case kOptQuiesce: options.quiesce = true; break;
+        case kOptVddkConfig: options.vddk.configFile = argument; break;
 
         default: return false; // unreachable: the two value ranges are disjoint
     }
@@ -306,6 +310,8 @@ bool checkApiOptions(const Options& options)
             unused = "--nfc-port";
         } else if (options.queryChunk) {
             unused = "--query-chunk";
+        } else if (!options.vddk.configFile.empty()) {
+            unused = "--vddk-config";
         }
     } else {
         if (!options.cluster.empty()) {

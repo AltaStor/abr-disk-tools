@@ -159,6 +159,7 @@ With `--host`, the options below describe the vCenter/ESXi connection.
 | `--snapshot` | `MOREF` | Managed object reference of the VM snapshot to read from/write to, instead of the VM's current point. Over SOAP, backups only. |
 | `--nfc-port` | `PORT` | VDDK only. NFC port on the ESXi host used for the actual data transfer. Default: `902`. |
 | `--transport` | `MODES` | VDDK only. Colon-separated VDDK transport mode list, tried in order, e.g. `nbdssl:nbd:hotadd:san`. Left to VDDK's own default when omitted. |
+| `--vddk-config` | `FILE` | VDDK only. Configuration file handed to the VDDK when it starts (`VixDiskLib_InitEx`), with the settings VMware documents for transports and logging. A file that cannot be read is an error rather than a silent fall back to the defaults. |
 | `--quiesce` | — | SOAP only. Quiesce the guest file systems through VMware Tools when snapshotting a running VM for a backup. |
 | `--cluster` | `NAME` | SOAP only. Cluster or standalone host that the temporary VM of a new disk runs on. Needed only when the datastore is shared by more than one. |
 | `--resource-pool` | `NAME` | SOAP only. Resource pool of that cluster or host for the same. Default: its root pool. |

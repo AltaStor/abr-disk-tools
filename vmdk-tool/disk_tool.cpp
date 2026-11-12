@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -273,11 +274,20 @@ bool parseOptions(int argc, char* argv[], Options& options)
 
     // The password of a vCenter administrator, as often as not: the one secret
     // of this tool's own, and as exposed on the command line as the key.
-    return Tool::parseSharedOptions(argc, argv, table.rows(), options,
-        [&options](int value, const std::string& argument) {
-            return setToolOption(options, value, argument);
-        },
-        {{"password", &options.vddk.password}});
+    if (!Tool::parseSharedOptions(argc, argv, table.rows(), options,
+            [&options](int value, const std::string& argument) {
+                return setToolOption(options, value, argument);
+            },
+            {{"password", &options.vddk.password}})) {
+        return false;
+    }
+
+    // The launcher takes this variable to set the library search path before the process starts.
+    // The binary has to load the same file, which the bare library name would not find under another name.
+    if (const char* file = std::getenv("ABR_VMDK_TOOL_VDDK_LIB"); file && *file) {
+        options.vddk.libraryFile = file;
+    }
+    return true;
 }
 
 // Handed to Tool::Context for the commands common/ runs. Not called parseSharedOptions:

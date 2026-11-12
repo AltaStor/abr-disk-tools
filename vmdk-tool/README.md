@@ -31,7 +31,7 @@ installed tree — or at `../../vddk`, which is `vddk/` at the repository root
 for a build directory inside a checkout, and exports
 an `LD_LIBRARY_PATH` that leads with its `lib64`. There is no option for this:
 the search path has to be set before the process starts, so the binary has no
-say in it. Three variables override the search, and each is authoritative: if
+say in it. Four variables override the search, and each is authoritative: if
 one is set but does not resolve, the launcher reports it and exits rather than
 quietly running something else.
 
@@ -39,7 +39,15 @@ quietly running something else.
 | --- | --- |
 | `ABR_VMDK_TOOL_BIN` | path to the binary |
 | `ABR_VMDK_TOOL_VDDK_DIR` | path to the VDDK root |
+| `ABR_VMDK_TOOL_VDDK_LIB` | path to the VDDK library file itself, under whatever name it has, in place of a VDDK root |
 | `ABR_VMDK_TOOL_TMPDIR` | scratch directory for the VDDK transport plugins |
+
+`ABR_VMDK_TOOL_VDDK_LIB` loads exactly the file it names, for example a bundle's
+`lib64/libvixDiskLib.so.9.1.0.0` when the bare `libvixDiskLib.so` link points
+elsewhere or is missing. Its directory takes the place of the bundle's `lib64`
+on the search path, so a VMware bundle's file should stay in its `lib64`, where
+the transport plugins are. It cannot be set together with
+`ABR_VMDK_TOOL_VDDK_DIR`.
 
 ## Commands
 
@@ -163,16 +171,17 @@ RPATH, so `LD_LIBRARY_PATH` is the only search path that reaches them — and
 glibc reads that variable once, at process start, which is why the launcher and
 not the tool is what sets it. The launcher exports, in order:
 
-- the bundle's `lib64`, when a bundle was found. It leads, so that the plugins
-  resolve.
+- the bundle's `lib64`, when a bundle was found, or the directory of the file
+  `ABR_VMDK_TOOL_VDDK_LIB` names. It leads, so that the plugins resolve.
 - a vendored `lib/` directory beside the binary, if the package build put one
   there.
 - `/usr/local/lib`, where `libcrc32c.so.1` is installed.
 
-The tool then `dlopen`s `libvixDiskLib.so` by bare name and lets the loader pick
-— it never takes a path of its own. Whichever installation that turns out to be
-is read back with `dlinfo(RTLD_DI_ORIGIN)` and handed to `VixDiskLib_Init`, so
-the plugins are looked for in the same bundle the library itself came from.
+The tool then `dlopen`s `libvixDiskLib.so` by bare name and lets the loader pick,
+unless `ABR_VMDK_TOOL_VDDK_LIB` names a file, which it loads as given. Whichever
+installation that turns out to be is read back with `dlinfo(RTLD_DI_ORIGIN)` and
+handed to `VixDiskLib_InitEx`, so the plugins are looked for in the same bundle
+the library itself came from.
 
 The bundle leading the search path would normally be a problem, since its older
 `libstdc++`/`libcrypto` would be found ahead of the system copies the binary was

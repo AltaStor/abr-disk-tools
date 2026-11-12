@@ -10,6 +10,9 @@
 # out of the same directory) and a writable TMPDIR for those plugins.
 # This script supplies both and then gets out of the way.
 #
+# ABR_VMDK_TOOL_VDDK_LIB names the library file itself, under whatever name it has, in place of a VDDK root.
+# Its directory then takes the place of the bundle's lib64 on the search path, and the binary loads that file.
+#
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -65,6 +68,17 @@ find_vddk_root() {
   return 1
 }
 
+# Resolved to an absolute path, so that the binary's messages and the installation root it works out from the
+# loaded file do not depend on the current directory.
+find_vddk_lib() {
+  local file="${ABR_VMDK_TOOL_VDDK_LIB}"
+  if [[ ! -f "${file}" || ! -r "${file}" ]]; then
+    echo "ABR_VMDK_TOOL_VDDK_LIB is not a readable file: ${file}" >&2
+    return 1
+  fi
+  printf '%s/%s\n' "$(cd "$(dirname "${file}")" && pwd)" "$(basename "${file}")"
+}
+
 choose_tmpdir() {
   local candidate=""
   local probe=""
@@ -87,17 +101,32 @@ TMPDIR="$(choose_tmpdir)" || {
 }
 export TMPDIR
 
-# A bundle that is merely absent is not fatal: copy, list, info, verify, remove
-# and the meta_* commands never touch the VDDK, and the ones that do report its
-# absence better than this script could. A bad override (status 2) is fatal.
-VDDK_ROOT="$(find_vddk_root)" || {
-  [[ $? -eq 2 ]] && exit 1
-  VDDK_ROOT=""
-}
+# The directory the VDDK library is taken from, empty when there is none.
+VDDK_LIB_DIR=""
+if [[ -n "${ABR_VMDK_TOOL_VDDK_LIB:-}" ]]; then
+  # Two overrides naming different libraries leave no way to tell which one was meant.
+  if [[ -n "${ABR_VMDK_TOOL_VDDK_DIR:-}" ]]; then
+    echo "Set ABR_VMDK_TOOL_VDDK_LIB or ABR_VMDK_TOOL_VDDK_DIR, not both." >&2
+    exit 1
+  fi
+  ABR_VMDK_TOOL_VDDK_LIB="$(find_vddk_lib)" || exit 1
+  export ABR_VMDK_TOOL_VDDK_LIB
+  VDDK_LIB_DIR="$(dirname "${ABR_VMDK_TOOL_VDDK_LIB}")"
+else
+  # A bundle that is merely absent is not fatal: copy, list, info, verify, remove
+  # and the meta_* commands never touch the VDDK, and the ones that do report its
+  # absence better than this script could. A bad override (status 2) is fatal.
+  VDDK_ROOT="$(find_vddk_root)" || {
+    [[ $? -eq 2 ]] && exit 1
+    VDDK_ROOT=""
+  }
+  VDDK_LIB_DIR="${VDDK_ROOT:+${VDDK_ROOT}/lib64}"
+fi
 
 # The library search path, in the order the loader will try it:
 #
-#   1. the bundle's lib64, when there is one. It has to lead: the VDDK's
+#   1. the bundle's lib64, or the directory of ABR_VMDK_TOOL_VDDK_LIB,
+#      when there is one. It has to lead: the VDDK's
 #      plugins (libdiskLibPlugin.so and the dozen libraries behind it) live
 #      nowhere else, and LD_LIBRARY_PATH is the only search path that reaches
 #      them -- they carry no RPATH of their own.
@@ -110,7 +139,7 @@ VDDK_ROOT="$(find_vddk_root)" || {
 # the binary carries a DT_RPATH naming the compiler's runtime directories, and
 # RPATH is searched before LD_LIBRARY_PATH for everything the process loads.
 LIB_PATH=""
-for dir in "${VDDK_ROOT:+${VDDK_ROOT}/lib64}" "${SCRIPT_DIR}/lib" /usr/local/lib; do
+for dir in "${VDDK_LIB_DIR}" "${SCRIPT_DIR}/lib" /usr/local/lib; do
   [[ -n "${dir}" && -d "${dir}" ]] || continue
   LIB_PATH="${LIB_PATH:+${LIB_PATH}:}${dir}"
 done

@@ -168,6 +168,14 @@ With `--host`, the options below describe the vCenter/ESXi connection.
 this before connecting and reports whichever is missing rather than failing
 deep inside VDDK. An option of the other API is refused rather than ignored.
 
+An incremental over the VDDK asks the VDDK what changed since `--change-id`,
+which a VDDK can answer from 9.0 on. With an older VDDK the tool asks vSphere
+instead, through the SOAP API (`QueryChangedDiskAreas`), and says so on
+standard error; the data is still read through the VDDK. That takes a tool
+built with the SOAP API, and a disk on a host: a local VMDK has no
+incrementals before VDDK 9.0. Without `--snapshot` vSphere answers only for a
+powered-off VM.
+
 ### Over the SOAP API
 
 **Backup.** A powered-off VM whose disk has no snapshots is read directly,

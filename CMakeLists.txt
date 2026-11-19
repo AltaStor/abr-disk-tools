@@ -10,6 +10,8 @@
 #   vmdk-tool/, vhdx-tool/, nbd-tool/
 #                   one folder per format -- see cmake/tools.cmake for what
 #                   makes a folder a tool, and README.md for adding one
+#   nbdkit-plugin/  nbdkit-abr-plugin, which serves a chain over NBD for
+#                   Proxmox VE restores
 #   abr-backup-lib/ the .abr format and its storage (submodule)
 #   abr-disk-lib/   the disk backends (submodule)
 #
@@ -20,6 +22,8 @@
 #                           is one the tool supports"
 #   ABR_ENABLED_TOOLS       the tools to build, by format (vmdk, or vmdk,vhdx),
 #                           in place of those switches; empty leaves it to them
+#   ABR_BUILD_NBDKIT_PLUGIN AUTO | ON | OFF; AUTO is "on Linux, when pkg-config
+#                           finds nbdkit"
 #   ABR_VERSION             the numeric version, 26.11.31; 1.0.0 by default
 #   ABR_VERSION_STRING      the full version --version prints, 26.11~pre+31.g<hash>;
 #                           empty is ABR_VERSION
@@ -111,6 +115,10 @@ if(NOT _abr_tool_folders)
         "which target.")
 endif()
 
+# The nbdkit plugin is decided here too: when it is built, the libraries below are
+# built position independent, so that they can go into a shared object.
+include(nbdkit-plugin/plugin.cmake)
+
 # --- What every target below inherits ------------------------------------------
 #
 # Directory-level settings: each target takes them as it is created, backuplib's
@@ -196,6 +204,11 @@ configure_file(common/version.h.in "${ABR_GENERATED_INCLUDE_DIR}/version.h" @ONL
 foreach(_abr_tool IN LISTS _abr_tool_folders)
     add_subdirectory(${_abr_tool})
 endforeach()
+
+# After the tools, since its test makes its chains with abr-nbd-tool.
+if(ABR_NBDKIT_PLUGIN)
+    add_subdirectory(nbdkit-plugin)
+endif()
 
 # CMake reserves the name "clean" for its own built-in target, which only
 # removes tracked build outputs and leaves the configured build tree in place.

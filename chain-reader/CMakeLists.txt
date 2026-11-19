@@ -12,8 +12,13 @@ add_library(abr-chain-reader STATIC
 
 target_include_directories(abr-chain-reader PUBLIC "${CMAKE_CURRENT_LIST_DIR}/inc")
 
-# PUBLIC: chain.h names Abr:: types, and chain_reader.h implements abr-disk-lib's IDiskReader.
-target_link_libraries(abr-chain-reader PUBLIC backuplib abr-disk-lib)
+# PUBLIC: chain.h names Abr:: types.
+target_link_libraries(abr-chain-reader PUBLIC backuplib)
+
+# chain_reader.h implements abr-disk-lib's IDiskReader, which lives in its headers alone, so only those are taken.
+# Linking the library would bring its backends into the nbdkit plugin, libnbd and the vSphere SOAP code with them:
+# C++20 objects define std::string members weakly, and the linker takes them from the first archive that has them.
+target_include_directories(abr-chain-reader PUBLIC "$<TARGET_PROPERTY:abr-disk-lib,INTERFACE_INCLUDE_DIRECTORIES>")
 
 target_compile_features(abr-chain-reader PUBLIC cxx_std_20)
 

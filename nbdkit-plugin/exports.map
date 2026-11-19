@@ -1,0 +1,8 @@
+/* nbdkit-abr-plugin exports its entry point only. backuplib, the AWS SDK and the libraries they carry stay inside
+   the plugin, so they cannot clash with anything else loaded into nbdkit. */
+{
+    global:
+        plugin_init;
+    local:
+        *;
+};

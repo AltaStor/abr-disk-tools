@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `abr-vmdk-tool`, `abr-vhdx-tool` and `abr-nbd-tool` are recorded here.
+All notable changes to `abr-vmdk-tool`, `abr-vhdx-tool`, `abr-nbd-tool` and `nbdkit-abr-plugin` are recorded here.
 
 A release is a tag, `v<year>.<month>` and then `v<year>.<month>.<n>`, on its
 release branch (`v26.09.x` for 26.09); fixes reach a release branch from `main` by
@@ -11,6 +11,17 @@ cherry-pick.
 On `main`, not in any release yet.
 
 ### Added
+
+- `nbdkit-abr-plugin`, for Linux: an nbdkit plugin that serves a chain of
+  backups read-only over NBD as the disk it restores to, for Proxmox VE
+  restores, where `qemu-img` reads each disk from it. `folder`, `path` and
+  `chain` name the backups, on a file repository or with `mode=s3` on S3;
+  `key` and `secret-key` also take nbdkit's `-FD` and `+FILE` forms, which keep
+  secrets off the command line. It reads through abr-chain-reader's
+  `ChainReader`, one request at a time, reports where the chain holds data as
+  block status, and refuses a chain that starts with an incremental. A chain
+  on a file repository is opened before nbdkit writes its pidfile, so one that
+  does not open stops nbdkit first.
 
 - `empty`, in every tool: writes an incremental backup that holds no data on top
   of `--parent`, with the parent's geometry, compression and encryption, for a

@@ -13,6 +13,10 @@ They are the data movers a backup server invokes once per disk. Every tool has
 the same commands, the same options apart from its hypervisor's own, and the
 same `--json` results, and they read and write the same repositories.
 
+Beside them, on Linux, `nbdkit-abr-plugin` serves a chain of backups read-only
+over NBD as the disk it restores to. Proxmox VE restores read each disk from it:
+[nbdkit-plugin/README.md](nbdkit-plugin/README.md), [manual](doc/nbdkit-abr-plugin.md).
+
 ## Layout
 
 ```
@@ -24,6 +28,8 @@ chain-reader/   abr-chain-reader: a chain of backups opened, checked and merged,
 vmdk-tool/, vhdx-tool/, nbd-tool/
                 one folder per format: its options and help, and its disks
                 opened for backup and restore
+nbdkit-plugin/  nbdkit-abr-plugin, which serves a chain read-only over NBD
+                for Proxmox VE restores
 abr-backup-lib/ the .abr format and its file and S3 storage, the backuplib
                 library (submodule, AltaStor/abr-backup-lib)
 abr-disk-lib/   the disk backends behind IDiskReader/IDiskWriter (submodule,
@@ -32,6 +38,7 @@ cmake/          target and toolchain selection, the tool mechanism
 doc/            the manuals; testing on Hyper-V
 test/hyperv/    the end-to-end test of abr-vhdx-tool
 test/nbd/       the end-to-end test of abr-nbd-tool, against qemu-storage-daemon
+test/nbdkit/    the end-to-end test of nbdkit-abr-plugin, read back with qemu-img
 ```
 
 ## Targets
@@ -40,7 +47,7 @@ One parameter says what the build is for; which tools come out follows from it.
 
 | `ABR_TARGET` | Host | Compiler | Builds |
 | --- | --- | --- | --- |
-| `linux` | Linux | the host's | `abr-vmdk-tool`, and `abr-nbd-tool` where libnbd is installed |
+| `linux` | Linux | the host's | `abr-vmdk-tool`; `abr-nbd-tool` where libnbd is installed, and `nbdkit-abr-plugin` where nbdkit's plugin headers are |
 | `windows` | Windows | MSVC, or MinGW in an MSYS2 shell | `abr-vhdx-tool.exe` |
 | `windows-cross` | Linux (anything but Windows) | MinGW-w64 | `abr-vhdx-tool.exe` |
 | `auto` (default) | any | the host's own, or the `CMAKE_TOOLCHAIN_FILE` on the command line | whatever that targets |
@@ -56,6 +63,7 @@ cmake --preset windows-cross && cmake --build --preset windows-cross
 
 ```
 build-linux/bin/abr-vmdk-tool   build-linux/bin/abr-vmdk-tool.sh   build-linux/bin/abr-nbd-tool
+build-linux/lib/nbdkit-abr-plugin.so
 build-windows-cross/bin/abr-vhdx-tool.exe
 ```
 
@@ -97,7 +105,7 @@ Common to every build:
   git submodule update --init --recursive
   ```
 
-### Linux (`linux`): abr-vmdk-tool, abr-nbd-tool
+### Linux (`linux`): abr-vmdk-tool, abr-nbd-tool, nbdkit-abr-plugin
 
 - a C++20 compiler
 - for the VDDK API, the VMware Virtual Disk Development Kit (VDDK) -- not fetched by anything
@@ -118,6 +126,10 @@ Common to every build:
   on Debian 13 and Ubuntu). Without it the tool is left out of a build that does not
   ask for it by name. Its end-to-end test needs `qemu-utils` (`qemu-img`, `qemu-io`,
   `qemu-storage-daemon`), and is left out without them
+- for `nbdkit-abr-plugin`, nbdkit 1.30 or later, found through `pkg-config`
+  (`nbdkit-plugin-dev`). Without it the plugin is left out of a build that does
+  not ask for it with `ABR_BUILD_NBDKIT_PLUGIN=ON`. Its end-to-end test needs
+  `abr-nbd-tool`, `nbdkit` and `nbdinfo` (`libnbd-bin`) besides the QEMU tools
 
 ### Linux to Windows (`windows-cross`): abr-vhdx-tool
 
@@ -197,6 +209,7 @@ The parameters:
 | `ABR_VERSION` | one to four numbers, each 0..65535 | `1.0.0` | The numeric version: `project()`'s, and the `FILEVERSION`/`PRODUCTVERSION` of each `.exe`. A release line and a build number, `26.11.31`. |
 | `ABR_VERSION_STRING` | text without quotes or backslashes | empty | The full version, `26.11~pre+31.g6a11c8981539`: what `--version` prints, and the `FileVersion`/`ProductVersion` strings of each `.exe`. Empty is `ABR_VERSION`. |
 | `ABR_BUILD_VMDK_TOOL`, `ABR_BUILD_VHDX_TOOL`, `ABR_BUILD_NBD_TOOL` | `AUTO`, `ON`, `OFF` | `AUTO` | Whether to build that tool. `AUTO` is "when the target is one it supports", and for `abr-nbd-tool` also "where libnbd is installed"; `ON` for any other target, or without libnbd, is an error. |
+| `ABR_BUILD_NBDKIT_PLUGIN` | `AUTO`, `ON`, `OFF` | `AUTO` | Whether to build `nbdkit-abr-plugin`. `AUTO` builds it on Linux where `pkg-config` finds nbdkit 1.30 or later; `ON` without it is an error. When it is built, the libraries are built position independent, since the plugin is a shared object. |
 | `ABR_MINGW_TRIPLE` | a target triple | `x86_64-w64-mingw32ucrt` | `windows-cross` only: the MinGW-w64 compiler, `<triple>-g++` on `PATH`. It has to target UCRT. |
 | `VDDK_DIR` | a path | `../vddk`, beside the repository | The VDDK, for `abr-vmdk-tool`. Only `include/vixDiskLib.h` has to exist to build. |
 | `ABR_DISK_WITH_VDDK`, `ABR_DISK_WITH_SOAP` | `AUTO`, `ON`, `OFF` | `AUTO` | The two ways `abr-vmdk-tool` reaches VMware, `--api vddk` and `--api soap`. `AUTO` builds the VDDK where its headers are and SOAP where its submodule is, on Linux; `ON` makes a missing one an error. The tool needs at least one. |
@@ -234,6 +247,13 @@ incremental from a QEMU dirty bitmap and one with no changes, an encrypted
 backup, and restores of the chains, against a `qemu-storage-daemon` export of a
 qcow2 image, the way Proxmox VE exports a disk to a backup provider.
 
+`nbdkit-abr-plugin` has an end-to-end test that `ctest --preset linux` runs, in
+[test/nbdkit/test-nbdkit-plugin.sh](test/nbdkit/test-nbdkit-plugin.sh): a full and
+two incrementals made with `abr-nbd-tool`, served by nbdkit and read back with
+`qemu-img` as a Proxmox VE restore reads them, the extents `nbdinfo` maps, an
+encrypted chain, a read-only repository, nbdkit in the background, and the
+refusals.
+
 `abr-chain-reader` has unit tests that `ctest` runs in a native build: `ChainReader`
 over chains written into a file repository, read whole, in unaligned pieces,
 with a key, from a read-only folder, and with an empty incremental at the end.
@@ -261,7 +281,9 @@ cmake --install build-windows-cross --prefix /path/to/prefix --strip
 `abr-vmdk-tool` and its launcher `abr-vmdk-tool.sh` land in `<prefix>/bin`;
 the launcher looks for the binary beside itself, so keep the two together.
 `abr-nbd-tool` is one binary in `<prefix>/bin`, which needs libnbd's shared
-library (`libnbd0`) on the machine it runs on. `abr-vhdx-tool.exe` is the one file, also in `<prefix>/bin`; `--strip` takes a
+library (`libnbd0`) on the machine it runs on. `nbdkit-abr-plugin.so` lands in
+`<prefix>/lib`; nbdkit loads it by its path, or by the name `abr` from nbdkit's
+plugin directory (`pkg-config --variable=plugindir nbdkit`). `abr-vhdx-tool.exe` is the one file, also in `<prefix>/bin`; `--strip` takes a
 release build from about 17 MB down to 12.
 
 ## Adding a format

@@ -17,7 +17,10 @@ same `--json` results, and they read and write the same repositories.
 
 ```
 common/         the CLI every tool shares: options, --json, the copy loops,
-                the chain merge, every command
+                every command
+chain-reader/   abr-chain-reader: a chain of backups opened, checked and merged,
+                and ChainReader, which reads a chain as one disk image; shared
+                by the tools and the nbdkit plugin
 vmdk-tool/, vhdx-tool/, nbd-tool/
                 one folder per format: its options and help, and its disks
                 opened for backup and restore
@@ -230,6 +233,10 @@ without a hypervisor on a VMDK made with `qemu-img`, through the launcher with
 incremental from a QEMU dirty bitmap and one with no changes, an encrypted
 backup, and restores of the chains, against a `qemu-storage-daemon` export of a
 qcow2 image, the way Proxmox VE exports a disk to a backup provider.
+
+`abr-chain-reader` has unit tests that `ctest` runs in a native build: `ChainReader`
+over chains written into a file repository, read whole, in unaligned pieces,
+with a key, from a read-only folder, and with an empty incremental at the end.
 
 `abr-disk-lib` has a self-test of its own, in its repository, which reads
 `qemu-storage-daemon` exports with its NBD backend as well.

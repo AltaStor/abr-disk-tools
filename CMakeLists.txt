@@ -5,6 +5,8 @@
 # one tree.
 #
 #   common/         the CLI every tool shares
+#   chain-reader/   abr-chain-reader: a chain of backups opened and merged, and read
+#                   as one disk image, for the tools and the nbdkit plugin
 #   vmdk-tool/, vhdx-tool/, nbd-tool/
 #                   one folder per format -- see cmake/tools.cmake for what
 #                   makes a folder a tool, and README.md for adding one
@@ -177,13 +179,14 @@ endif()
 
 # --- The libraries ------------------------------------------------------------
 #
-# In this order: common/ links the other two.
+# In this order: chain-reader/ links the first two, and common/ links all three.
 
 include(cmake/backuplib.cmake)
 include(cmake/disklib.cmake)
 
 add_subdirectory("${ABR_BACKUPLIB_DIR}" backuplib_build)
 add_subdirectory("${ABR_DISKLIB_DIR}" disklib_build)
+add_subdirectory(chain-reader)
 add_subdirectory(common)
 
 # One version for every tool's --version output and version resource.

@@ -7,7 +7,7 @@
 #
 # No project() here, and nothing to decide about the toolchain, the build type
 # or the MSVC runtime: the top-level CMakeLists.txt has settled them, and has
-# added backuplib and abr-disk-lib, which this links.
+# added backuplib, abr-disk-lib and abr-chain-reader, which this links.
 
 add_library(abr-tools-common STATIC
     src/cli_options.cpp
@@ -36,7 +36,8 @@ target_include_directories(abr-tools-common PUBLIC "${CMAKE_CURRENT_LIST_DIR}/in
 # each tool's disk_tool.cpp finds "abr_backup.h" by its bare name.
 # The same goes for abr-disk-lib: tool_backup.h takes an IDiskReader and an IDiskWriter,
 # which are declared in its disk_device.h.
-target_link_libraries(abr-tools-common PUBLIC backuplib abr-disk-lib)
+# abr-chain-reader is PUBLIC too, since tool_backup.h hands its names on.
+target_link_libraries(abr-tools-common PUBLIC backuplib abr-disk-lib abr-chain-reader)
 
 target_compile_features(abr-tools-common PUBLIC cxx_std_20)
 

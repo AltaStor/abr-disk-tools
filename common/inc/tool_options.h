@@ -12,13 +12,16 @@
 #include <vector>
 
 #include "abr_backup.h"
+#include "chain.h"
 #include "cli_options.h"
 
 namespace Tool
 {
-    constexpr uint32_t kDefaultChunkSize = 4 * 1024 * 1024;
-    constexpr const char* kDefaultMode = "file";
-    constexpr int kDefaultCompression = 3;
+    // The storage a command reads or writes, and the defaults it starts from, are abr-chain-reader's (chain.h).
+    using Chain::kDefaultChunkSize;
+    using Chain::kDefaultMode;
+    using Chain::kDefaultCompression;
+    using Chain::StorageOptions;
 
     // The highest level backuplib accepts, which is zstd's own.
     constexpr int kMaxCompression = 22;
@@ -68,24 +71,6 @@ namespace Tool
         // Reserved: the library will never use a value at or above this, and
         // leaves room below it to add one. A tool's enum starts here.
         kOptToolFirst = 512,
-    };
-
-    struct StorageOptions {
-        std::string mode = kDefaultMode;
-        std::string folder;
-        std::string path;
-        std::string name;
-        std::string key;
-        int compression = kDefaultCompression;
-
-        std::string endpoint;
-        std::string region;
-        std::string accessKey;
-        std::string secretKey;
-        std::string profile;
-        bool pathStyle = false;
-        bool verifyTls = true;
-        bool createFolder = false;
     };
 
     // What the --source-<...> options overrode, and nothing else.

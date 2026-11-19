@@ -61,6 +61,7 @@ namespace Tool
     std::string programNameOf(const std::string& invokedAs, const char* fallback);
 
     int runCopy(const std::string& programName, int argc, char* argv[]);
+    int runEmpty(const std::string& programName, int argc, char* argv[]);
     int runList(const std::string& programName, int argc, char* argv[]);
     int runInfo(const std::string& programName, int argc, char* argv[]);
     int runVerify(const std::string& programName, int argc, char* argv[]);

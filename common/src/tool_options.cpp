@@ -38,6 +38,7 @@ const Cli::LongOption Tool::kHeadLongOptions[] = {
     {"change-id",     Cli::Argument::Required, kOptChangeId},
     {"type",          Cli::Argument::Required, kOptType},
     {"json",          Cli::Argument::None,     kOptJson},
+    {"parent",        Cli::Argument::Required, kOptParent},
 
     {nullptr,         Cli::Argument::None,     0},
 };
@@ -131,6 +132,7 @@ bool Tool::parseSharedOptions(int argc, char* argv[], const Cli::LongOption* lon
             case kOptChangeId: options.changeId = arg; break;
             case kOptType: options.type = arg; break;
             case kOptJson: options.json = true; break;
+            case kOptParent: options.parent = arg; break;
 
             case kOptSourceNames:
                 if (!parseBackupNames(arg, options.sourceNames)) {

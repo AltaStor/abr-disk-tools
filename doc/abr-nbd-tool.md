@@ -28,6 +28,7 @@ Commands:
   backup    Create a backup of a disk/volume/NBD export
   restore   Restore a disk/volume from a backup
   copy      Merge a chain of backups into a new backup
+  empty     Write an incremental backup that changes nothing
   list      List available backups
   info      Show information about a backup
   verify    Check the integrity of a backup
@@ -199,8 +200,8 @@ $ abr-nbd-tool restore --folder repo --path vm-101 \
 
 ### The other commands
 
-`copy`, `list`, `info`, `verify`, `remove`, `retention`, `meta_save` and
-`meta_load` work on the repository alone and behave exactly as in the other
+`copy`, `empty`, `list`, `info`, `verify`, `remove`, `retention`, `meta_save`
+and `meta_load` work on the repository alone and behave exactly as in the other
 tools: see [Commands](abr-vmdk-tool.md#copy) in the abr-vmdk-tool manual.
 
 ## JSON output

@@ -46,6 +46,7 @@ abr-nbd-tool backup --json --folder /mnt/repo --path vm-101 --name vm-101-scsi0-
 backup     Create a backup of a disk/volume/NBD export
 restore    Restore a disk/volume from a backup
 copy       Merge a chain of backups into a new backup
+empty      Write an incremental backup that changes nothing
 list       List available backups
 info       Show information about a backup
 verify     Check the integrity of a backup

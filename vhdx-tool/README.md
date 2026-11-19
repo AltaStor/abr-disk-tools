@@ -42,6 +42,7 @@ on older builds, repository paths have to stay within the system code page.
 backup     Create a backup of a disk/volume/virtual disk
 restore    Restore a disk/volume/virtual disk from a backup
 copy       Merge a chain of backups into a new backup
+empty      Write an incremental backup that changes nothing
 list       List available backups
 info       Show information about a backup
 verify     Check the integrity of a backup
@@ -54,7 +55,7 @@ meta_load  Read back the metadata blob of a backup
 Options are per-command; `abr-vhdx-tool.exe <command> --help` is authoritative.
 Storage is selected with `--mode file|s3` plus `--folder`, and `--path` for
 a subfolder within it. 
-Only `backup` and `restore` touch a disk; `copy`, `list`, `info`, `verify`,
+Only `backup` and `restore` touch a disk; `copy`, `empty`, `list`, `info`, `verify`,
 `remove`, `retention` and the `meta_*` commands work on any Windows, elevated or not.
 
 See [doc/abr-vhdx-tool.md](../doc/abr-vhdx-tool.md) for the full manual: every

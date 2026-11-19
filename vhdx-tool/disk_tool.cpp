@@ -257,6 +257,8 @@ int dispatch(const std::string& programName, const std::string& command, int arg
         return Tool::runRestore(programName, argc, argv);
     } else if (command == "copy") {
         return Tool::runCopy(programName, argc, argv);
+    } else if (command == "empty") {
+        return Tool::runEmpty(programName, argc, argv);
     } else if (command == "list") {
         return Tool::runList(programName, argc, argv);
     } else if (command == "info") {

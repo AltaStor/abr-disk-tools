@@ -210,6 +210,99 @@ int Tool::runCopy(const std::string& programName, int argc, char* argv[])
     return 0;
 }
 
+// An incremental that holds no data, on top of --parent, for a disk that has not changed since the parent was taken.
+// abr-core writes one for a stopped Proxmox VE VM that has not run since its last backup, instead of reading the
+// whole disk again. It takes the parent's geometry, compression and encryption, so that it fits the chain as any
+// incremental does.
+int Tool::runEmpty(const std::string& programName, int argc, char* argv[])
+{
+    CommonOptions options;
+    if (!context().parseSharedOptions(argc, argv, options)) {
+        return 1;
+    }
+    if (options.help) {
+        printEmptyHelp(programName);
+        return 0;
+    }
+    if (!checkStorageOptions(options.storage) || !checkImmutabilityOptions(options)) {
+        return 1;
+    }
+    if (options.storage.name.empty() || options.parent.empty()) {
+        std::cerr << "Error: empty requires --name and --parent\n";
+        printEmptyHelp(programName);
+        return 1;
+    }
+    if (options.storage.name == options.parent) {
+        std::cerr << "Error: '" << options.parent << "' is the parent; give the new backup a name of its own\n";
+        return 1;
+    }
+
+    auto pManager = openManager(options.storage);
+    if (!pManager) {
+        return 1;
+    }
+
+    // Opened for what it says about itself, and to hold the key against it.
+    BackupChain parent;
+    if (!openChain(*pManager, options.storage, {options.parent}, parent)) {
+        return 1;
+    }
+    const Abr::BackupInfo& base = parent.backups.front()->getInfo();
+
+    // A chain is restored with one key, so the new backup is encrypted exactly when its parent is.
+    if (!base.encryption && !options.storage.key.empty()) {
+        std::cerr << "Error: '" << options.parent << "' is not encrypted, so the backup on top of it is not\n"
+                  << "       either; leave out --key\n";
+        return 1;
+    }
+
+    Abr::BackupInfo info = {};
+    info.sectorSize = base.sectorSize;
+    info.phySectorSize = base.phySectorSize;
+    info.sectors = base.sectors;
+    info.compression = base.compression;
+    info.encryption = base.encryption;
+    info.incremental = 1;
+    info.m_immutabilityMode = options.immutability;
+    info.m_immutabilityDays = options.retentionDays;
+    info.m_immutabilityUntil = options.retentionTill;
+
+    std::shared_ptr<Abr::IBackup> pBackup;
+    if (!pManager->createBackup(options.storage.path, options.storage.name, info, pBackup,
+                                options.storage.key)) {
+        std::cerr << "Error: failed to create backup '" << options.storage.name << "'\n";
+        return 1;
+    }
+
+    info = pBackup->getInfo();
+
+    if (!pBackup->finalizeBackup(false)) {
+        std::cerr << "Error: failed to finalize backup '" << options.storage.name << "'\n";
+        return 1;
+    }
+
+    if (options.json) {
+        JsonObject json("empty", "ok");
+        json.addString("backup", backupLocation(options.storage));
+        json.addString("name", options.storage.name);
+        json.addString("parent", options.parent);
+        json.addString("kind", "incremental");
+        addRequestedImmutability(json, options);
+        addBackupInfo(json, info);
+    } else {
+        std::cout << "Backup:            " << backupLocation(options.storage) << "\n"
+                  << "Parent:            " << options.parent << "\n"
+                  << "Kind:              incremental, no changes\n"
+                  << "Compression:       "
+                  << (info.compression ? ("zstd level " + std::to_string(info.compression))
+                                       : std::string("none"))
+                  << "\n"
+                  << "Encryption:        " << (info.encryption ? "AES-256-GCM" : "none") << "\n"
+                  << "Immutability:      " << requestedImmutability(options) << "\n";
+    }
+    return 0;
+}
+
 int Tool::runList(const std::string& programName, int argc, char* argv[])
 {
     CommonOptions options;

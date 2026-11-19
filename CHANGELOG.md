@@ -12,6 +12,13 @@ On `main`, not in any release yet.
 
 ### Added
 
+- `empty`, in every tool: writes an incremental backup that holds no data on top
+  of `--parent`, with the parent's geometry, compression and encryption, for a
+  disk that has not changed since the parent was taken. A backup server records
+  one for a stopped VM that has not run since its last backup, instead of
+  reading the whole disk again. It is restored and merged like any other
+  incremental.
+
 - `abr-nbd-tool`, for Linux: backs up a disk exported over NBD, such as the
   backup export Proxmox VE hands to a backup provider for each disk of a VM,
   through libnbd and abr-disk-lib's new NBD backend. `--nbd` takes a Unix

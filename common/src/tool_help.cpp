@@ -19,6 +19,7 @@ void Tool::printMainHelp(const std::string& programName, const Branding& brandin
               << "  backup    Create a backup of a disk/volume/" << branding.diskNoun << "\n"
               << "  restore   Restore a " << restored << " from a backup\n"
               << "  copy      Merge a chain of backups into a new backup\n"
+              << "  empty     Write an incremental backup that changes nothing\n"
               << "  list      List available backups\n"
               << "  info      Show information about a backup\n"
               << "  verify    Check the integrity of a backup\n"
@@ -103,6 +104,31 @@ void Tool::printCopyHelp(const std::string& programName)
     printStorageOptions();
     std::cout << "\n";
     printSourceStorageOptions();
+}
+
+void Tool::printEmptyHelp(const std::string& programName)
+{
+    std::cout << "Usage: " << programName << " empty [options]\n\n"
+              << "Writes an incremental backup that holds no data, on top of --parent, for a\n"
+              << "disk that has not changed since the parent was taken. It is restored and\n"
+              << "merged like any other incremental, and changes nothing.\n\n"
+              << "It takes the parent's geometry, compression and encryption, so --key is\n"
+              << "required for an encrypted parent and refused for one that is not.\n"
+              << "\n"
+              << "Options:\n"
+              << "  -h, --help              Show this help message\n"
+              << "      --json              Print the command result to stdout as JSON\n"
+              << "  -n, --name NAME         Name of the backup to create (required)\n"
+              << "      --parent NAME       The backup it goes on top of, in the same storage\n"
+              << "                          (required)\n"
+              << "  -k, --key KEY           The parent's encryption key\n"
+              << "      --immutable MODE    Hold the new backup in 'governance' or\n"
+              << "                          'compliance' mode (S3 only)\n"
+              << "      --retention DAYS    How long --immutable holds it, in days\n"
+              << "      --retention-till DATE\n"
+              << "                          Hold it until DATE instead, in UTC as\n"
+              << "                          YYYY-MM-DDTHH:MM:SSZ; one of the two is required\n\n";
+    printStorageOptions();
 }
 
 void Tool::printListHelp(const std::string& programName)

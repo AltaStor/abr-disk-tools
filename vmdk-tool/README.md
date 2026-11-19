@@ -55,6 +55,7 @@ the transport plugins are. It cannot be set together with
 backup     Create a backup of a disk/volume/VMDK
 restore    Restore a disk/volume/VMDK from a backup
 copy       Merge a chain of backups into a new backup
+empty      Write an incremental backup that changes nothing
 list       List available backups
 info       Show information about a backup
 verify     Check the integrity of a backup
@@ -67,7 +68,7 @@ meta_load  Read back the metadata blob of a backup
 Options are per-command; `abr-vmdk-tool.sh <command> --help` is authoritative.
 Storage is selected with `--mode file|s3` plus `--folder`, and `--path` for a
 subfolder within it. Only `backup`, `restore` and the VMDK-facing paths touch
-the VDDK; `copy`, `list`, `info`, `verify`, `remove` and the `meta_*` commands
+the VDDK; `copy`, `empty`, `list`, `info`, `verify`, `remove` and the `meta_*` commands
 work without a bundle present, and so does everything with `--api soap`, which
 needs no VMware library at all. What SOAP can and cannot do, such as backing
 up running VMs through a snapshot export and restoring whole disks only, is in

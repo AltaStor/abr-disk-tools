@@ -348,7 +348,7 @@ only thing that catches a change in how the two streams interleave.
 The matrix that matters:
 
 - every help and version path: no arguments, `-h`, `--help`, `-v`,
-  `--version`, `--version --json`, and `<cmd> --help` for all ten commands;
+  `--version`, `--version --json`, and `<cmd> --help` for all eleven commands;
 - every option error, with and without `--json`: an unknown option, an
   ambiguous prefix, a bad `-c`, `--type`, `--immutable`, `--retention`, `--retention-till`,
   `--source-names`, a missing required option for each command, and a stray

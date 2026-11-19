@@ -42,6 +42,7 @@ namespace Tool
     // differs in several places and they end by printing the tool's own disk
     // options, which only it can describe.
     void printCopyHelp(const std::string& programName);
+    void printEmptyHelp(const std::string& programName);
     void printListHelp(const std::string& programName);
     void printInfoHelp(const std::string& programName);
     void printVerifyHelp(const std::string& programName);

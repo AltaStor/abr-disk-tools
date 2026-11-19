@@ -26,6 +26,7 @@ Commands:
   backup    Create a backup of a disk/volume/virtual disk
   restore   Restore a disk/volume/virtual disk from a backup
   copy      Merge a chain of backups into a new backup
+  empty     Write an incremental backup that changes nothing
   list      List available backups
   info      Show information about a backup
   verify    Check the integrity of a backup
@@ -58,6 +59,7 @@ parser.
   - [backup](#backup)
   - [restore](#restore)
   - [copy](#copy)
+  - [empty](#empty)
   - [list](#list)
   - [info](#info)
   - [verify](#verify)
@@ -72,7 +74,7 @@ parser.
 
 ## Storage options
 
-These apply to every command; they select where backups live. `copy`, `list`,
+These apply to every command; they select where backups live. `copy`, `empty`, `list`,
 `info`, `verify`, `remove`, `retention` and the `meta_*` commands act on
 storage alone and never touch a disk. `backup` and `restore` also need one side
 of a disk, described under [Virtual disk (Hyper-V)
@@ -484,6 +486,44 @@ with and is not carried over; run `meta_save` against the copy if it needs one.
 
 An interrupted copy discards what it had written, exactly as `backup` does,
 and leaves the chain untouched.
+
+### empty
+
+Write an incremental backup that holds no data, on top of another backup, for
+a disk that has not changed since that backup was taken.
+
+```
+abr-vhdx-tool.exe empty [options]
+```
+
+| Option | Argument | Meaning |
+| --- | --- | --- |
+| `-n`, `--name` | `NAME` | Name of the backup to create. **Required.** |
+| `--parent` | `NAME` | The backup it goes on top of, in the same storage. **Required.** |
+| `-k`, `--key` | `KEY` | The parent's key. Required when the parent is encrypted, and refused when it is not. |
+| `--immutable`, `--retention`, `--retention-till` | | Hold the new backup, as for [backup](#backup). S3 only. |
+
+Plus the [storage options](#storage-options).
+
+The new backup takes the parent's geometry, compression and encryption, so it
+fits the chain as any incremental does: `restore --source-names` and `copy`
+take it after its parent, and it changes nothing. A backup server writes one
+when it knows a disk has not changed, such as a stopped VM that has not run
+since its last backup, instead of reading the whole disk again. The parent is
+opened and its key checked; no data is read from it.
+
+```
+$ abr-vhdx-tool.exe empty --folder /srv/backups --name web01-sda-inc2 --parent web01-sda-inc1
+Backup:            /srv/backups/web01-sda-inc2
+Parent:            web01-sda-inc1
+Kind:              incremental, no changes
+Compression:       zstd level 3
+Encryption:        none
+Immutability:      none
+```
+
+Under `--json` the result has the fields of a `backup` result, with `parent`
+in place of `source`, and a `raw_data_size` of 0.
 
 ### list
 

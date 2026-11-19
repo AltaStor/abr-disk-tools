@@ -67,6 +67,8 @@ namespace Tool
         kOptSourceNoVerifyTls,
 
         kOptStdinKeys,
+        // The backup 'empty' writes an incremental on top of.
+        kOptParent,
 
         // Reserved: the library will never use a value at or above this, and
         // leaves room below it to add one. A tool's enum starts here.
@@ -104,6 +106,9 @@ namespace Tool
         // The chain 'copy' merges and 'restore' applies, in the order it has to be applied:
         // the backup to start from first, then each incremental on top of the one before it.
         std::vector<std::string> sourceNames;
+
+        // The backup 'empty' goes on top of, in the storage the plain storage options describe.
+        std::string parent;
 
         std::string source;
         std::string target;

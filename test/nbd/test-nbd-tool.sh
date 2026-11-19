@@ -7,9 +7,9 @@
 #
 #   test-nbd-tool.sh TOOL SCRATCH_DIR
 #
-# Checked: a full backup, an incremental from the bitmap, an incremental with no changes, an encrypted full with the
-# key on standard input, restores of the chains with --source-names, the JSON results, and the refusals of a missing
-# bitmap, an incremental without --nbd and NBD options on a restore.
+# Checked: a full backup, an incremental from the bitmap, an incremental with no changes, an empty incremental from
+# the 'empty' command, an encrypted full with the key on standard input, restores of the chains with --source-names,
+# the JSON results, and the refusals of a missing bitmap, an incremental without --nbd and NBD options on a restore.
 #
 set -euo pipefail
 
@@ -101,10 +101,21 @@ else
     fail "empty incremental: $(cat inc2.json)"
 fi
 
+# What abr-core writes for a stopped VM that has not run since its last backup, instead of reading it again.
+step "empty incremental on top of the chain"
+if "$tool" empty --json --folder repo --name inc3 --parent inc2 > inc3.json; then
+    [ "$(json inc3.json 'd["kind"]')" = incremental ] || fail "empty kind"
+    [ "$(json inc3.json 'd["raw_data_size"]')" = 0 ] || fail "empty incremental holds data"
+    [ "$(json inc3.json 'd["sectors"]')" = "$(json inc2.json 'd["sectors"]')" ] || fail "empty incremental geometry"
+else
+    fail "empty incremental: $(cat inc3.json)"
+fi
+
 step "restores"
 restore --name full --target r-full.raw > r-full.json || fail "restore of the full: $(cat r-full.json)"
 cmp -s r-full.raw full.raw || fail "the restored full differs from the disk at the full"
-restore --source-names full,inc1,inc2 --target r-chain.raw > r-chain.json || fail "chain restore: $(cat r-chain.json)"
+restore --source-names full,inc1,inc2,inc3 --target r-chain.raw > r-chain.json \
+    || fail "chain restore: $(cat r-chain.json)"
 cmp -s r-chain.raw inc1.raw || fail "the restored chain differs from the disk"
 
 step "encrypted full with the key on standard input"

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # abr-vhdx-tool: Hyper-V VHD, VHDX and AVHDX, through the Windows virtual disk
 # service. One self-contained .exe; no launcher.

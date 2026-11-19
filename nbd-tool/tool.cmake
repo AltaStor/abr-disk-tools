@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # What abr-nbd-tool needs settled before the libraries are added: libnbd, for abr-disk-lib's NBD backend.
 # Without it a tool that AUTO chose is left out, so that a Linux build without libnbd-dev still builds the others.

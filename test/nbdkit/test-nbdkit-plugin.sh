@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # End-to-end test of nbdkit-abr-plugin without Proxmox VE. abr-nbd-tool backs up a qemu-storage-daemon export as a full
 # and two incrementals, nbdkit serves the chain with the plugin, and qemu-img reads it back as a PVE restore does. Each

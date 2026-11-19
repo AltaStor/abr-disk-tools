@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # Runs the Hyper-V tests on a host from somewhere else, over PowerShell
 # remoting (WinRM). See doc/testing.md.

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # abr-chain-reader: a chain of backups opened, checked and merged, and ChainReader, which reads a chain as one disk
 # image. It has no CLI around it and does not depend on Tool::context(): the tools' copy loops in abr-tools-common

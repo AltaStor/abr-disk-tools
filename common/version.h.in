@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright © 2026 Norvitex OÜ
+// Copyright © 2026 Norvitex OÜ (AltaStor.com)
 //
 // Version of the tools, one for all of them: they are built from one tree
 // and released together. Generated from common/version.h.in by CMake, from

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright (c) 2026 Norvitex OU
+# Copyright (c) 2026 Norvitex OU (AltaStor.com)
 #
 # Shared by the Test-*.ps1 scripts: what a backup server does through Hyper-V's
 # WMI provider around a run of the tool, an independent way to read a virtual

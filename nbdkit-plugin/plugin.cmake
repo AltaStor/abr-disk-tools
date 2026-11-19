@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # Whether nbdkit-abr-plugin is built. Read ahead of the libraries, like a tool's tool.cmake, because a plugin is a
 # shared object: every static library it links has to be built position independent, and that is decided before

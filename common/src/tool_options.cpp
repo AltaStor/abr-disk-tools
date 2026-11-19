@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright © 2026 Norvitex OÜ
+// Copyright © 2026 Norvitex OÜ (AltaStor.com)
 //
 // The shared options: the table, the parse, and the checks on what came out
 //

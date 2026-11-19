@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # End-to-end test of abr-nbd-tool against a qemu-storage-daemon export with a dirty bitmap, the way Proxmox VE exports
 # a disk to a backup provider. Each restore is compared with the export it was taken from.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright © 2026 Norvitex OÜ
+// Copyright © 2026 Norvitex OÜ (AltaStor.com)
 //
 // ChainReader against chains written with backuplib into a file repository, compared with the image the same writes
 // make in memory

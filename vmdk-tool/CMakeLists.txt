@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # abr-vmdk-tool: VMware VMDKs, local or on an ESXi host or a vCenter, through
 # the VDDK. A binary and the launcher that points it at a VDDK installation.

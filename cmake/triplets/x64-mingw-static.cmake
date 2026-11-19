@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # vcpkg's community x64-mingw-static triplet, built with the UCRT compiler the
 # tools are, plus what building it from a Linux host needs. The top-level

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright (c) 2026 Norvitex OU
+# Copyright (c) 2026 Norvitex OU (AltaStor.com)
 #
 # End-to-end test of abr-vhdx-tool against one disk of a Hyper-V VM, which may
 # be running: the backup server's checkpoint workflow, a full and an

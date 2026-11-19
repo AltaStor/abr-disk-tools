@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright © 2026 Norvitex OÜ
+// Copyright © 2026 Norvitex OÜ (AltaStor.com)
 //
 // A chain of backups: the storage it is read from, opened and checked, and the plan that merges it
 //

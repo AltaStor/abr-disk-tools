@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # The version every tool reports, given by whoever builds it -- a package build
 # passes its own, a developer's build is 1.0.0. Two of them, because Windows

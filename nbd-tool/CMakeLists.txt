@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # abr-nbd-tool: disks exported over NBD, such as the backup exports Proxmox VE hands to a backup provider.
 # One binary on Linux; it links libnbd from the system, and backuplib brings the rest.

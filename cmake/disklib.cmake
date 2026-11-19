@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # Where abr-disk-lib is: every disk backend -- files and devices, Hyper-V
 # virtual disks, VMware disks -- behind IDiskReader/IDiskWriter.

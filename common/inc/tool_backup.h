@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright © 2026 Norvitex OÜ
+// Copyright © 2026 Norvitex OÜ (AltaStor.com)
 //
 // The copy loops, the storage they run against, and the chain 'copy' merges
 //

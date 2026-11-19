@@ -104,6 +104,13 @@ On `main`, not in any release yet.
   without it, the `.abrm` alone is. A name that holds neither, or an index
   without its data, is reported as such.
 
+- On Linux, a tool whose output went to a process that had ended died of
+  SIGPIPE at its next progress line, before it could discard a partial
+  backup. That is what a stopped backup task does to the tools it runs: it
+  ends them and the process reading their output together, and the partial
+  backup stayed in the repository. The tools now ignore SIGPIPE, so the write
+  fails instead and an interrupted backup is still discarded.
+
 ### Changed
 
 - `abr-vhdx-tool.exe` is built against the Universal C Runtime (UCRT) rather

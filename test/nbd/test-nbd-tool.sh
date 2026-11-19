@@ -9,7 +9,8 @@
 #
 # Checked: a full backup, an incremental from the bitmap, an incremental with no changes, an empty incremental from
 # the 'empty' command, an encrypted full with the key on standard input, restores of the chains with --source-names,
-# the JSON results, and the refusals of a missing bitmap, an incremental without --nbd and NBD options on a restore.
+# the JSON results, a backup stopped after its output reader went away, and the refusals of a missing bitmap, an
+# incremental without --nbd and NBD options on a restore.
 #
 set -euo pipefail
 
@@ -127,6 +128,22 @@ if printf 'key=test-key-0123456789\n\n' | backup --name enc --stdin-keys > enc.j
 else
     fail "encrypted backup: $(cat enc.json)"
 fi
+
+# A stopped backup task ends the process that reads the tool's output along with the tool. The tool must not die of
+# the closed pipe before it has discarded what it wrote.
+step "a backup stopped after its output reader went away"
+mkfifo output
+"$tool" backup --json --folder repo --nbd "$PWD/disk.sock" --export drive-scsi0 --name gone --bwlimit 1 \
+    > output 2>&1 &
+pid=$!
+head -c 1 output > /dev/null
+sleep 1
+kill -TERM "$pid" 2>/dev/null || true
+status=0
+wait "$pid" || status=$?
+[ "$status" -eq 1 ] || fail "the stopped tool exited with $status instead of 1"
+"$tool" list --json --folder repo > list-gone.json
+grep -q '"gone"' list-gone.json && fail "the stopped backup left something in the repository"
 
 step "refusals"
 if backup --name bad1 --type incremental --change-id nosuch > bad1.json 2> bad1.err; then

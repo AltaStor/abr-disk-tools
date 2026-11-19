@@ -32,6 +32,13 @@ void Plat::installInterruptHandler()
     action.sa_flags = SA_RESETHAND;
     sigaction(SIGINT, &action, nullptr);
     sigaction(SIGTERM, &action, nullptr);
+
+    // The process that reads the tool's output may end before it, as the worker of a stopped backup task does.
+    // Writing to its closed pipe then fails instead of killing the tool, which can still discard a partial backup.
+    struct sigaction ignore = {};
+    ignore.sa_handler = SIG_IGN;
+    sigemptyset(&ignore.sa_mask);
+    sigaction(SIGPIPE, &ignore, nullptr);
 }
 
 bool Plat::interruptRequested()

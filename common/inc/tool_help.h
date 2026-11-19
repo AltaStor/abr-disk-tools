@@ -27,6 +27,10 @@ namespace Tool
         // What interrupted() says is being released, which differs because
         // what each tool holds does.
         const char* interruptNote;
+
+        // What the command list says 'restore' writes, when that is not what 'backup' reads.
+        // Null means the same as backup; abr-nbd-tool restores to files and devices only.
+        const char* restoreNoun = nullptr;
     };
 
     void printMainHelp(const std::string& programName, const Branding& branding);

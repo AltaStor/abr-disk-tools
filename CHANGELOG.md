@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `abr-vmdk-tool` and `abr-vhdx-tool` are recorded here.
+All notable changes to `abr-vmdk-tool`, `abr-vhdx-tool` and `abr-nbd-tool` are recorded here.
 
 A release is a tag, `v<year>.<month>` and then `v<year>.<month>.<n>`, on its
 release branch (`v26.09.x` for 26.09); fixes reach a release branch from `main` by
@@ -11,6 +11,19 @@ cherry-pick.
 On `main`, not in any release yet.
 
 ### Added
+
+- `abr-nbd-tool`, for Linux: backs up a disk exported over NBD, such as the
+  backup export Proxmox VE hands to a backup provider for each disk of a VM,
+  through libnbd and abr-disk-lib's new NBD backend. `--nbd` takes a Unix
+  socket path or an NBD URI and `--export` the export's name. A full backup
+  skips what the export reports as reading zero; `--type incremental
+  --change-id BITMAP` reads the blocks of a QEMU dirty bitmap, and an export
+  without that bitmap is an error rather than a full read. `--bwlimit` limits
+  the read rate, and `--discard` discards each range after reading it, which
+  frees the fleecing image of a PVE backup export. Restores and the storage
+  commands are the shared ones. Built where libnbd 1.18 or later is installed
+  (`ABR_BUILD_NBD_TOOL`), with an end-to-end test against
+  `qemu-storage-daemon` under `ctest`.
 
 - `abr-vmdk-tool --api soap`: VMware disks over the vSphere SOAP API and HTTPS,
   through vsphere-soap-lib, with no VDDK on the host. Backups of powered-off

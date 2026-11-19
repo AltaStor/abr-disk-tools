@@ -5,7 +5,7 @@
 # one tree.
 #
 #   common/         the CLI every tool shares
-#   vmdk-tool/, vhdx-tool/
+#   vmdk-tool/, vhdx-tool/, nbd-tool/
 #                   one folder per format -- see cmake/tools.cmake for what
 #                   makes a folder a tool, and README.md for adding one
 #   abr-backup-lib/ the .abr format and its storage (submodule)
@@ -98,6 +98,7 @@ include(cmake/tools.cmake)
 
 abr_tool(vmdk SYSTEMS Linux)
 abr_tool(vhdx SYSTEMS Windows)
+abr_tool(nbd SYSTEMS Linux)
 
 abr_enabled_tool_folders(_abr_tool_folders)
 

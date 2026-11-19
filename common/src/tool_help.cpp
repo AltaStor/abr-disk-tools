@@ -11,10 +11,13 @@
 
 void Tool::printMainHelp(const std::string& programName, const Branding& branding)
 {
+    const std::string restored = branding.restoreNoun ? std::string(branding.restoreNoun)
+                                                      : std::string("disk/volume/") + branding.diskNoun;
+
     std::cout << "Usage: " << programName << " <command> [options]\n\n"
               << "Commands:\n"
               << "  backup    Create a backup of a disk/volume/" << branding.diskNoun << "\n"
-              << "  restore   Restore a disk/volume/" << branding.diskNoun << " from a backup\n"
+              << "  restore   Restore a " << restored << " from a backup\n"
               << "  copy      Merge a chain of backups into a new backup\n"
               << "  list      List available backups\n"
               << "  info      Show information about a backup\n"

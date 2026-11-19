@@ -88,6 +88,7 @@ function(abr_declare_tool format)
         endif()
     elseif(${_switch} STREQUAL "AUTO")
         set(_enabled ${_supported})
+        set(_by_auto TRUE)
     elseif(${_switch} AND NOT _supported)
         message(FATAL_ERROR
             "${_switch}=ON, but abr-${format}-tool is built for ${_systems} and this build "
@@ -104,7 +105,12 @@ function(abr_declare_tool format)
 
     if(_enabled)
         set_property(GLOBAL APPEND PROPERTY ABR_ENABLED_TOOL_FOLDERS "${_folder}")
-        message(STATUS "abr-${format}-tool: yes")
+
+        # Whether AUTO chose the tool, which lets its tool.cmake leave it out (abr_tool_unavailable).
+        # The macro abr_tool reports it once that file has had its say.
+        if(_by_auto)
+            set_property(GLOBAL PROPERTY ABR_TOOL_${_upper}_AUTO TRUE)
+        endif()
 
         # In the caller's scope, so that what it sets -- ABR_DISK_WITH_<X> in
         # the cache, VDDK_DIR and the like as plain variables -- is there for
@@ -159,10 +165,40 @@ endfunction()
 # declaration is this macro: the function decides, the macro includes.
 macro(abr_tool format)
     abr_declare_tool(${format} ${ARGN})
-    if(_abr_tool_config AND EXISTS "${_abr_tool_config}")
-        include("${_abr_tool_config}")
+    if(_abr_tool_config)
+        if(EXISTS "${_abr_tool_config}")
+            include("${_abr_tool_config}")
+        endif()
+
+        get_property(_abr_tool_enabled_folders GLOBAL PROPERTY ABR_ENABLED_TOOL_FOLDERS)
+        if("${format}-tool" IN_LIST _abr_tool_enabled_folders)
+            message(STATUS "abr-${format}-tool: yes")
+        endif()
     endif()
 endmacro()
+
+# Called from a tool.cmake when the tool cannot be built here, such as for a library that is not installed.
+# A tool that AUTO chose is left out with the reason. One asked for with ON or ABR_ENABLED_TOOLS stops the configure.
+#
+#   abr_tool_unavailable(<format> <reason>)
+#
+# The tool.cmake returns right after, so that it settles nothing for a tool that is not built.
+function(abr_tool_unavailable format reason)
+    string(TOUPPER "${format}" _upper)
+    get_property(_auto GLOBAL PROPERTY ABR_TOOL_${_upper}_AUTO)
+
+    if(NOT _auto)
+        message(FATAL_ERROR
+            "abr-${format}-tool is asked for by ABR_BUILD_${_upper}_TOOL or ABR_ENABLED_TOOLS, but cannot be "
+            "built: ${reason}.")
+    endif()
+
+    get_property(_folders GLOBAL PROPERTY ABR_ENABLED_TOOL_FOLDERS)
+    list(REMOVE_ITEM _folders "${format}-tool")
+    set_property(GLOBAL PROPERTY ABR_ENABLED_TOOL_FOLDERS "${_folders}")
+
+    message(STATUS "abr-${format}-tool: no (${reason})")
+endfunction()
 
 # Creates a tool's executable, with everything every tool has in common.
 #

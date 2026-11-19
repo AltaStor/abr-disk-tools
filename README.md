@@ -7,6 +7,7 @@ backup format -- one tool per virtual disk format, all built from this tree:
 | --- | --- | --- | --- |
 | `abr-vmdk-tool` | plain files; VMware VMDKs, local or on an ESXi host or a vCenter, through the VDDK or the vSphere SOAP API | Linux | [vmdk-tool/README.md](vmdk-tool/README.md), [manual](doc/abr-vmdk-tool.md) |
 | `abr-vhdx-tool` | plain files, disks and volumes; Hyper-V VHD, VHDX and AVHDX, through the Windows virtual disk service | Windows 10 / Server 2016 and later | [vhdx-tool/README.md](vhdx-tool/README.md), [manual](doc/abr-vhdx-tool.md) |
+| `abr-nbd-tool` | plain files and devices; disks exported over NBD, such as the backup exports of Proxmox VE, through libnbd | Linux | [nbd-tool/README.md](nbd-tool/README.md), [manual](doc/abr-nbd-tool.md) |
 
 They are the data movers a backup server invokes once per disk. Every tool has
 the same commands, the same options apart from its hypervisor's own, and the
@@ -17,7 +18,7 @@ same `--json` results, and they read and write the same repositories.
 ```
 common/         the CLI every tool shares: options, --json, the copy loops,
                 the chain merge, every command
-vmdk-tool/, vhdx-tool/
+vmdk-tool/, vhdx-tool/, nbd-tool/
                 one folder per format: its options and help, and its disks
                 opened for backup and restore
 abr-backup-lib/ the .abr format and its file and S3 storage, the backuplib
@@ -27,6 +28,7 @@ abr-disk-lib/   the disk backends behind IDiskReader/IDiskWriter (submodule,
 cmake/          target and toolchain selection, the tool mechanism
 doc/            the manuals; testing on Hyper-V
 test/hyperv/    the end-to-end test of abr-vhdx-tool
+test/nbd/       the end-to-end test of abr-nbd-tool, against qemu-storage-daemon
 ```
 
 ## Targets
@@ -35,7 +37,7 @@ One parameter says what the build is for; which tools come out follows from it.
 
 | `ABR_TARGET` | Host | Compiler | Builds |
 | --- | --- | --- | --- |
-| `linux` | Linux | the host's | `abr-vmdk-tool` |
+| `linux` | Linux | the host's | `abr-vmdk-tool`, and `abr-nbd-tool` where libnbd is installed |
 | `windows` | Windows | MSVC, or MinGW in an MSYS2 shell | `abr-vhdx-tool.exe` |
 | `windows-cross` | Linux (anything but Windows) | MinGW-w64 | `abr-vhdx-tool.exe` |
 | `auto` (default) | any | the host's own, or the `CMAKE_TOOLCHAIN_FILE` on the command line | whatever that targets |
@@ -50,7 +52,7 @@ cmake --preset windows-cross && cmake --build --preset windows-cross
 ```
 
 ```
-build-linux/bin/abr-vmdk-tool   build-linux/bin/abr-vmdk-tool.sh
+build-linux/bin/abr-vmdk-tool   build-linux/bin/abr-vmdk-tool.sh   build-linux/bin/abr-nbd-tool
 build-windows-cross/bin/abr-vhdx-tool.exe
 ```
 
@@ -92,7 +94,7 @@ Common to every build:
   git submodule update --init --recursive
   ```
 
-### Linux (`linux`): abr-vmdk-tool
+### Linux (`linux`): abr-vmdk-tool, abr-nbd-tool
 
 - a C++20 compiler
 - for the VDDK API, the VMware Virtual Disk Development Kit (VDDK) -- not fetched by anything
@@ -109,6 +111,10 @@ Common to every build:
 - `libcrc32c`, installed on the system or resolvable through vcpkg
 - system development packages: `libssl-dev`, `libcurl4-openssl-dev`,
   `libc-ares-dev`, `zlib1g-dev`, `libzstd-dev`
+- for `abr-nbd-tool`, libnbd 1.18 or later, found through `pkg-config` (`libnbd-dev`
+  on Debian 13 and Ubuntu). Without it the tool is left out of a build that does not
+  ask for it by name. Its end-to-end test needs `qemu-utils` (`qemu-img`, `qemu-io`,
+  `qemu-storage-daemon`), and is left out without them
 
 ### Linux to Windows (`windows-cross`): abr-vhdx-tool
 
@@ -187,7 +193,7 @@ The parameters:
 | `ABR_ENABLED_TOOLS` | formats, separated by commas | empty | The tools to build, named outright: `vmdk`, or `vmdk,vhdx`. A tool not on the list is not built, and the `ABR_BUILD_<FMT>_TOOL` switches are not consulted; naming a tool the target does not support, or one that does not exist, is an error. Empty leaves it to those switches. |
 | `ABR_VERSION` | one to four numbers, each 0..65535 | `1.0.0` | The numeric version: `project()`'s, and the `FILEVERSION`/`PRODUCTVERSION` of each `.exe`. A release line and a build number, `26.11.31`. |
 | `ABR_VERSION_STRING` | text without quotes or backslashes | empty | The full version, `26.11~pre+31.g6a11c8981539`: what `--version` prints, and the `FileVersion`/`ProductVersion` strings of each `.exe`. Empty is `ABR_VERSION`. |
-| `ABR_BUILD_VMDK_TOOL`, `ABR_BUILD_VHDX_TOOL` | `AUTO`, `ON`, `OFF` | `AUTO` | Whether to build that tool. `AUTO` is "when the target is one it supports"; `ON` for any other target is an error. |
+| `ABR_BUILD_VMDK_TOOL`, `ABR_BUILD_VHDX_TOOL`, `ABR_BUILD_NBD_TOOL` | `AUTO`, `ON`, `OFF` | `AUTO` | Whether to build that tool. `AUTO` is "when the target is one it supports", and for `abr-nbd-tool` also "where libnbd is installed"; `ON` for any other target, or without libnbd, is an error. |
 | `ABR_MINGW_TRIPLE` | a target triple | `x86_64-w64-mingw32ucrt` | `windows-cross` only: the MinGW-w64 compiler, `<triple>-g++` on `PATH`. It has to target UCRT. |
 | `VDDK_DIR` | a path | `../vddk`, beside the repository | The VDDK, for `abr-vmdk-tool`. Only `include/vixDiskLib.h` has to exist to build. |
 | `ABR_DISK_WITH_VDDK`, `ABR_DISK_WITH_SOAP` | `AUTO`, `ON`, `OFF` | `AUTO` | The two ways `abr-vmdk-tool` reaches VMware, `--api vddk` and `--api soap`. `AUTO` builds the VDDK where its headers are and SOAP where its submodule is, on Linux; `ON` makes a missing one an error. The tool needs at least one. |
@@ -219,7 +225,14 @@ hand: [doc/testing.md](doc/testing.md). `abr-vmdk-tool` can be exercised
 without a hypervisor on a VMDK made with `qemu-img`, through the launcher with
 `ABR_VMDK_TOOL_VDDK_DIR` pointing at the VDDK.
 
-`abr-disk-lib` has a self-test of its own, in its repository.
+`abr-nbd-tool` has an end-to-end test that `ctest --preset linux` runs, in
+[test/nbd/test-nbd-tool.sh](test/nbd/test-nbd-tool.sh): a full backup, an
+incremental from a QEMU dirty bitmap and one with no changes, an encrypted
+backup, and restores of the chains, against a `qemu-storage-daemon` export of a
+qcow2 image, the way Proxmox VE exports a disk to a backup provider.
+
+`abr-disk-lib` has a self-test of its own, in its repository, which reads
+`qemu-storage-daemon` exports with its NBD backend as well.
 
 ## Clean
 
@@ -240,7 +253,8 @@ cmake --install build-windows-cross --prefix /path/to/prefix --strip
 
 `abr-vmdk-tool` and its launcher `abr-vmdk-tool.sh` land in `<prefix>/bin`;
 the launcher looks for the binary beside itself, so keep the two together.
-`abr-vhdx-tool.exe` is the one file, also in `<prefix>/bin`; `--strip` takes a
+`abr-nbd-tool` is one binary in `<prefix>/bin`, which needs libnbd's shared
+library (`libnbd0`) on the machine it runs on. `abr-vhdx-tool.exe` is the one file, also in `<prefix>/bin`; `--strip` takes a
 release build from about 17 MB down to 12.
 
 ## Adding a format
@@ -250,7 +264,10 @@ whose backend `abr-disk-lib` already has:
 
 1. `foo-tool/tool.cmake` -- read before the libraries are added. Ask for the
    backend (`set(ABR_DISK_WITH_FOO ON CACHE STRING "" FORCE)`) and check
-   anything only this format needs, such as an SDK.
+   anything only this format needs, such as an SDK. When that is missing,
+   `abr_tool_unavailable(foo "<reason>")` followed by `return()` leaves out a
+   tool that `AUTO` chose, and stops a build that asked for it, as
+   `nbd-tool/tool.cmake` does for libnbd.
 2. `foo-tool/CMakeLists.txt` -- read after them:
 
    ```cmake

@@ -41,6 +41,7 @@ to nbdkit's: the version of the tools built with it.
 | `aws-profile` | `NAME` | A profile of the AWS configuration files, in place of the keys. |
 | `path-style` | boolean | Path-style S3 addressing, as `--path-style`. Default: false. |
 | `verify-tls` | boolean | Whether to verify the endpoint's certificate. Default: true; false is `--no-verify-tls`. |
+| `stall-timeout` | `SECONDS` | How long a read goes on trying while the S3 storage does not answer, as the tools' `--stall-timeout`. Default: 0, which fails within seconds. A client that waits less, such as a kernel NBD device with a request timeout, gives up first. |
 
 The S3 parameters go with `mode=s3`; any of them in file mode is refused. A
 boolean is anything nbdkit reads as one: `true`, `false`, `on`, `off`, `1`,

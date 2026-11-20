@@ -97,6 +97,7 @@ these, prefixed `--source-` and described under [copy](#copy).
 | `--aws-profile` | `NAME` | Named profile to take credentials from, instead of explicit keys. |
 | `--path-style` | — | Use path-style S3 addressing (`https://endpoint/bucket/key`) instead of virtual-hosted style. Needed for most S3-compatible object stores. |
 | `--no-verify-tls` | — | Disable TLS certificate verification for S3 requests. For endpoints with a self-signed or otherwise unverifiable certificate; avoid it against anything reachable over an untrusted network. |
+| `--stall-timeout` | `SECONDS` | How long requests go on trying while the S3 storage does not answer, counted from the first attempt that failed, before the command fails; up to 86400. The first attempt fails up to 30 s after the storage went silent. A stall ends when any request gets an answer. Default: 0, which gives up within seconds, after the few attempts of the S3 client. A stopped command stops waiting at once, so that it can still discard what it wrote. S3 mode only for now. |
 
 `--mode` must be exactly `file` or `s3`; anything else is rejected before any
 storage is touched. In `file` mode the S3-only options above are accepted but

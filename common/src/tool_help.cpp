@@ -48,7 +48,11 @@ void Tool::printStorageOptions()
               << "                          on the command line\n"
               << "      --aws-profile NAME  Shared AWS profile to take credentials from\n"
               << "      --path-style        Use path-style S3 addressing\n"
-              << "      --no-verify-tls     Disable TLS verification for S3\n";
+              << "      --no-verify-tls     Disable TLS verification for S3\n"
+              << "      --stall-timeout SECONDS\n"
+              << "                          Keep trying for this long while the S3 storage\n"
+              << "                          does not answer; 0, the default, gives up\n"
+              << "                          after the few attempts of the S3 client\n";
 }
 
 void Tool::printSourceStorageOptions()

@@ -4,7 +4,9 @@
 // The shared options: the table, the parse, and the checks on what came out
 //
 #include "tool_options.h"
+#include "tool_backup.h"
 
+#include <charconv>
 #include <chrono>
 #include <cstdio>
 #include <iostream>
@@ -31,6 +33,7 @@ const Cli::LongOption Tool::kHeadLongOptions[] = {
     {"path-style",    Cli::Argument::None,     kOptPathStyle},
     {"create-folder", Cli::Argument::None,     kOptCreateFolder},
     {"no-verify-tls", Cli::Argument::None,     kOptNoVerifyTls},
+    {"stall-timeout", Cli::Argument::Required, kOptStallTimeout},
     {"immutable",     Cli::Argument::Required, kOptImmutable},
     {"retention",     Cli::Argument::Required, kOptRetention},
     {"retention-till", Cli::Argument::Required, kOptRetentionTill},
@@ -113,6 +116,11 @@ bool Tool::parseSharedOptions(int argc, char* argv[], const Cli::LongOption* lon
             case kOptPathStyle: options.storage.pathStyle = true; break;
             case kOptCreateFolder: options.storage.createFolder = true; break;
             case kOptNoVerifyTls: options.storage.verifyTls = false; break;
+            case kOptStallTimeout:
+                if (!parseStallTimeout(arg, options.storage.stallSeconds)) {
+                    return false;
+                }
+                break;
             case kOptImmutable:
                 if (!parseImmutabilityMode(arg, options.immutability)) {
                     return false;
@@ -160,6 +168,9 @@ bool Tool::parseSharedOptions(int argc, char* argv[], const Cli::LongOption* lon
                 break;
         }
     }
+
+    // A stopped tool stops waiting for a repository that does not answer, so that it can still clean up.
+    options.storage.stopRequested = interrupted;
 
     // Read once the whole command line is in, so that a secret given there too is caught;
     // and not for --help, which would otherwise sit waiting on a console for input
@@ -274,6 +285,19 @@ bool Tool::parseImmutabilityMode(const std::string& text, Abr::ImmutabilityMode&
         std::cerr << "Error: --immutable must be 'none', 'governance' or 'compliance'\n";
         return false;
     }
+    return true;
+}
+
+bool Tool::parseStallTimeout(const std::string& text, uint32_t& seconds)
+{
+    uint32_t value = 0;
+    const char* end = text.data() + text.size();
+    const auto [last, error] = std::from_chars(text.data(), end, value);
+    if (text.empty() || error != std::errc() || last != end || value > Chain::kMaxStallSeconds) {
+        std::cerr << "Error: --stall-timeout must be a number of seconds from 0 to " << Chain::kMaxStallSeconds << "\n";
+        return false;
+    }
+    seconds = value;
     return true;
 }
 

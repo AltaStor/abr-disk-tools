@@ -29,12 +29,16 @@ std::shared_ptr<Abr::IBackupManager> Chain::openManager(const StorageOptions& st
         params.m_profile = storage.profile;
         params.m_pathStyle = storage.pathStyle;
         params.m_verifyTls = storage.verifyTls;
+        params.m_stallSeconds = storage.stallSeconds;
+        params.m_stopRequested = storage.stopRequested;
         pManager = Abr::createBackupManager(storage.mode, params);
     } else {
         Abr::BackupManagerParams params;
         params.m_size = sizeof(params);
         params.m_createFolderIfMissing = storage.createFolder;
         params.m_folder = storage.folder;
+        params.m_stallSeconds = storage.stallSeconds;
+        params.m_stopRequested = storage.stopRequested;
         pManager = Abr::createBackupManager(storage.mode, params);
     }
 

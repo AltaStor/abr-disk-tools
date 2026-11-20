@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -23,6 +24,9 @@ namespace Chain
     constexpr uint32_t kDefaultChunkSize = 4 * 1024 * 1024;
     constexpr const char* kDefaultMode = "file";
     constexpr int kDefaultCompression = 3;
+
+    // The longest a tool or the nbdkit plugin waits for a repository that does not answer: a day.
+    constexpr uint32_t kMaxStallSeconds = 86400;
 
     struct StorageOptions {
         std::string mode = kDefaultMode;
@@ -40,6 +44,11 @@ namespace Chain
         bool pathStyle = false;
         bool verifyTls = true;
         bool createFolder = false;
+
+        // How long requests go on trying while the repository does not answer, in seconds, up to kMaxStallSeconds;
+        // 0 gives up within seconds. The stop check ends the wait at once.
+        uint32_t stallSeconds = 0;
+        std::function<bool()> stopRequested;
     };
 
     std::shared_ptr<Abr::IBackupManager> openManager(const StorageOptions& storage);

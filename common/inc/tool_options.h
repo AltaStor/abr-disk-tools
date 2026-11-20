@@ -69,6 +69,7 @@ namespace Tool
         kOptStdinKeys,
         // The backup 'empty' writes an incremental on top of.
         kOptParent,
+        kOptStallTimeout,
 
         // Reserved: the library will never use a value at or above this, and
         // leaves room below it to add one. A tool's enum starts here.
@@ -212,6 +213,8 @@ namespace Tool
 
     bool parseImmutabilityMode(const std::string& text, Abr::ImmutabilityMode& mode);
     bool parseRetentionDays(const std::string& text, int& days);
+    // --stall-timeout: seconds, up to Chain::kMaxStallSeconds.
+    bool parseStallTimeout(const std::string& text, uint32_t& seconds);
 
     // What --retention-till takes: "YYYY-MM-DDTHH:MM:SS" in UTC, with a space allowed in place of
     // the T and an optional trailing Z, and nothing else. A moment already reached is refused here,

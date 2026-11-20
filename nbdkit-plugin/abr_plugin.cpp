@@ -164,6 +164,21 @@ namespace
         return 0;
     }
 
+    // Up to Chain::kMaxStallSeconds, as the tools' --stall-timeout.
+    int readStallSeconds(const char* key, const char* value, uint32_t& result)
+    {
+        uint32_t seconds = 0;
+        if (nbdkit_parse_uint32_t(key, value, &seconds) == -1) {
+            return -1;
+        }
+        if (seconds > Chain::kMaxStallSeconds) {
+            nbdkit_error("%s takes at most %" PRIu32 " seconds", key, Chain::kMaxStallSeconds);
+            return -1;
+        }
+        result = seconds;
+        return 0;
+    }
+
     // Splits NAME[,NAME...] into the names of the chain.
     int readChain(const char* value, std::vector<std::string>& names)
     {
@@ -248,6 +263,8 @@ namespace
                 return readBool(key, value, storage.pathStyle);
             } else if (name == "verify-tls") {
                 return readBool(key, value, storage.verifyTls);
+            } else if (name == "stall-timeout") {
+                return readStallSeconds(key, value, storage.stallSeconds);
             } else {
                 nbdkit_error("unknown parameter '%s'", key);
                 return -1;
@@ -468,7 +485,9 @@ namespace
             "key=KEY              Decryption key. -FD reads it from file descriptor FD, +FILE from a file.\n"
             "endpoint=URL region=REGION access-key=KEY secret-key=KEY aws-profile=NAME\n"
             "path-style=BOOL verify-tls=BOOL\n"
-            "                     S3 settings, with mode=s3. secret-key takes -FD and +FILE as key does.",
+            "                     S3 settings, with mode=s3. secret-key takes -FD and +FILE as key does.\n"
+            "stall-timeout=SECONDS How long a read goes on trying while the S3 storage does not answer\n"
+            "                     (default: 0, fails within seconds).",
         .open = abrOpen,
         .get_size = abrGetSize,
         .errno_is_preserved = 0,

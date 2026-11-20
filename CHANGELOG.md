@@ -12,6 +12,13 @@ On `main`, not in any release yet.
 
 ### Added
 
+- `--stall-timeout SECONDS`, in every tool, and `stall-timeout` in
+  `nbdkit-abr-plugin`: while the S3 storage does not answer, a request is tried
+  again until nothing has answered for that long, instead of failing after the
+  SDK's few attempts within seconds. A stall lasts until any request gets an
+  answer, so the requests after one that outlasted the limit fail at once, and
+  a stopped tool stops waiting so that it can still discard what it wrote. The
+  default, 0, keeps the old behaviour.
 - `nbdkit-abr-plugin`, for Linux: an nbdkit plugin that serves a chain of
   backups read-only over NBD as the disk it restores to, for Proxmox VE
   restores, where `qemu-img` reads each disk from it. `folder`, `path` and
@@ -97,6 +104,12 @@ On `main`, not in any release yet.
 
 ### Fixed
 
+- An S3 download that the SDK tried again after a failed attempt wrote past
+  the bytes the failed attempt had left in its buffer, so the read failed with
+  "Failed to flush response stream"; a retried metadata download would have
+  appended a second copy. Each attempt now starts from the beginning, and a
+  metadata download that cannot be written to its target fails instead of
+  reporting success.
 - `retention` on a name that holds only metadata, such as a VM manifest stored
   with `meta_save` next to the backups of its disks, held the `.abrm` but then
   failed with NoSuchKey on the `.abrd` and `.abri` it never had. The index now

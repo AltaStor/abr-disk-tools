@@ -97,6 +97,20 @@ On `main`, not in any release yet.
 
 ### Fixed
 
+- A backup to a network share that lost writes the kernel made in the
+  background, say across a reconnect, was finalized as if complete: every
+  write had succeeded, and only closing the file reported the loss, which went
+  unchecked. The restore failed with a CRC mismatch. Such a backup now fails
+  and is discarded; the same holds for metadata saved with `meta_save`.
+- An S3 download that the SDK tried again after a failed attempt wrote past
+  the bytes the failed attempt had left in its buffer, so the read failed with
+  "Failed to flush response stream"; a retried metadata download would have
+  appended a second copy. Each attempt now starts from the beginning, and a
+  metadata download that cannot be written to its target fails instead of
+  reporting success.
+- A file repository's failed create, open, write or read now says why, from
+  errno, in an `Error:` line, which `--json` reports as the error. A failed
+  write used to print a meaningless byte count instead.
 - `retention` on a name that holds only metadata, such as a VM manifest stored
   with `meta_save` next to the backups of its disks, held the `.abrm` but then
   failed with NoSuchKey on the `.abrd` and `.abri` it never had. The index now

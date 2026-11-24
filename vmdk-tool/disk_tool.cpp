@@ -4,15 +4,19 @@
 // AltaStor VMDK backup utility
 //
 
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <limits>
 #include <memory>
 #include <optional>
 #include <string>
 
+#include <sys/mman.h>
 #include <unistd.h>
 
 #include "cli_options.h"
@@ -92,6 +96,11 @@ constexpr Api kDefaultApi = Api::Vddk;
 constexpr Api kDefaultApi = Api::Soap;
 #endif
 
+// Where the VDDK keeps its logs and temporary files when no --vddk-config is given, unless the variable names another
+// directory. The tool never creates it: without it the VDDK keeps its own default.
+constexpr const char* kDefaultVddkTmpDirectory = "/var/log/altastor-backup/vddk";
+constexpr const char* kVddkTmpDirectoryVariable = "ABR_VMDK_TOOL_VDDK_TMPDIR";
+
 struct Options : Tool::CommonOptions {
     Vddk::ConnectParams vddk;
     std::string vmdk;
@@ -121,7 +130,10 @@ void printVmdkOptions()
               << "  VDDK only:\n"
               << "      --nfc-port PORT     NFC port on the ESXi host (default: 902)\n"
               << "      --transport MODES   Transport modes, e.g. \"nbdssl:nbd:hotadd:san\"\n"
-              << "      --vddk-config FILE  VDDK configuration file\n"
+              << "      --vddk-config FILE  VDDK configuration file. Without it the VDDK keeps\n"
+              << "                          its logs and temporary files in the directory\n"
+              << "                          " << kVddkTmpDirectoryVariable << " names, by default\n"
+              << "                          " << kDefaultVddkTmpDirectory << ", if it exists\n"
               << "  SOAP only:\n"
               << "      --quiesce           Quiesce the guest when snapshotting a running VM\n"
               << "      --cluster NAME      Cluster or host a new disk is uploaded through\n"
@@ -368,6 +380,52 @@ bool checkVmdkOptions(const Options& options, bool forRestore)
     return true;
 }
 
+#ifdef ABR_DISK_HAVE_VDDK
+// The VDDK's temporary directory: the one the variable names, or the default, as long as it exists.
+// Empty when it does not, which leaves the VDDK to its own default; a directory named but missing is reported.
+std::string vddkTmpDirectory()
+{
+    const char* named = std::getenv(kVddkTmpDirectoryVariable);
+    const std::string directory = named && *named ? named : kDefaultVddkTmpDirectory;
+
+    std::error_code error;
+    if (std::filesystem::is_directory(directory, error)) {
+        return directory;
+    }
+    if (named && *named) {
+        std::cerr << "Warning: " << kVddkTmpDirectoryVariable << " names no directory: '" << directory
+                  << "'; the VDDK keeps its own temporary directory\n";
+    }
+    return {};
+}
+
+// The configuration the VDDK starts with when no --vddk-config is given. It makes vddkTmpDirectory() the VDDK's
+// temporary directory when there is one, and switches on writes over NBD and HotAdd for a library that keeps them
+// off until its configuration says so; VMware's VDDK ignores those keys.
+// The VDDK takes its settings from a file only, so they are written to an anonymous memory file it opens through
+// /proc. The descriptor stays open for the life of the process.
+// Returns the path the VDDK reads the configuration from, or an empty one when it cannot be made.
+std::string makeVddkConfig()
+{
+    std::string text;
+    if (const std::string directory = vddkTmpDirectory(); !directory.empty()) {
+        text = "tmpDirectory=" + directory + "\n";
+    }
+    text += "OpenVddk.nbd.write = true\n"
+            "OpenVddk.hotadd.write = true\n";
+
+    const int fd = memfd_create("abr-vmdk-tool-vddk-config", MFD_CLOEXEC);
+    if (fd < 0 || write(fd, text.data(), text.size()) != static_cast<ssize_t>(text.size())) {
+        std::cerr << "Error: cannot make the VDDK configuration: " << std::strerror(errno) << "\n";
+        if (fd >= 0) {
+            close(fd);
+        }
+        return {};
+    }
+    return "/proc/self/fd/" + std::to_string(fd);
+}
+#endif
+
 Soap::ConnectParams soapParams(const Options& options)
 {
     Soap::ConnectParams params;
@@ -438,7 +496,7 @@ public:
 #ifdef ABR_DISK_HAVE_VDDK
             auto pSession = std::make_shared<Vddk::Session>();
             pSource->session = pSession;
-            if (!pSession->connect(m_options.vddk, true)) {
+            if (!useDefaultVddkConfig() || !pSession->connect(m_options.vddk, true)) {
                 return nullptr;
             }
             pSource->reader = pSession->openReader(m_options.vmdk, m_options.changeId,
@@ -461,7 +519,7 @@ public:
 #ifdef ABR_DISK_HAVE_VDDK
             auto pSession = std::make_shared<Vddk::Session>();
             pTarget->session = pSession;
-            if (!pSession->connect(m_options.vddk, false)) {
+            if (!useDefaultVddkConfig() || !pSession->connect(m_options.vddk, false)) {
                 return nullptr;
             }
             pTarget->writer = pSession->openWriter(m_options.vmdk);
@@ -471,6 +529,18 @@ public:
     }
 
 private:
+#ifdef ABR_DISK_HAVE_VDDK
+    // A --vddk-config is used as given. Without one the default configuration is made by the first session,
+    // and a later one reuses its file. False when it cannot be made.
+    bool useDefaultVddkConfig()
+    {
+        if (m_options.vddk.configFile.empty()) {
+            m_options.vddk.configFile = makeVddkConfig();
+        }
+        return !m_options.vddk.configFile.empty();
+    }
+#endif
+
     // Reached only with --api soap, which a build without the SOAP API refuses while parsing.
     std::unique_ptr<Tool::DiskSource> openSoapSource()
     {

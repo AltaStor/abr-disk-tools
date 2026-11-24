@@ -49,6 +49,13 @@ on the search path, so a VMware bundle's file should stay in its `lib64`, where
 the transport plugins are. It cannot be set together with
 `ABR_VMDK_TOOL_VDDK_DIR`.
 
+`ABR_VMDK_TOOL_VDDK_TMPDIR` is read by the binary rather than the launcher. It
+names the directory the VDDK keeps its logs and temporary files in when no
+`--vddk-config` is given, by default `/var/log/altastor-backup/vddk`, which the
+server package creates. The binary never creates it: when it is missing, as in
+a run from a build tree, the VDDK keeps its own temporary directory, and a
+directory the variable names but that does not exist gets a warning.
+
 ## Commands
 
 ```

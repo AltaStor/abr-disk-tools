@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!--
   SPDX-License-Identifier: Apache-2.0
-  Copyright © 2026 Norvitex OÜ
+  Copyright © 2026 Norvitex OÜ (AltaStor.com)
 
   Application manifest of @ABR_TOOL_NAME@.exe, generated from
   common/windows/tool.manifest.in by abr_add_tool(), once per tool.

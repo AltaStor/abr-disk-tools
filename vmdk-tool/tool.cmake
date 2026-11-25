@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # What abr-vmdk-tool needs settled before the libraries are added: where the
 # VDDK is, for abr-disk-lib to build its VMware backend against, and the RPATH

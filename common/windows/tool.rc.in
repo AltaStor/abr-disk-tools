@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright © 2026 Norvitex OÜ
+// Copyright © 2026 Norvitex OÜ (AltaStor.com)
 //
 // Resources of @ABR_TOOL_NAME@.exe: its manifest and its version information.
 // Generated from common/windows/tool.rc.in by abr_add_tool(), once per tool.
@@ -34,7 +34,7 @@ BEGIN
             VALUE "FileDescription",  "@ABR_TOOL_DESCRIPTION@"
             VALUE "FileVersion",      ABR_DISK_TOOLS_VERSION
             VALUE "InternalName",     "@ABR_TOOL_NAME@"
-            VALUE "LegalCopyright",   "Copyright © 2026 Norvitex OÜ"
+            VALUE "LegalCopyright",   "Copyright © 2026 Norvitex OÜ (AltaStor.com)"
             VALUE "OriginalFilename", "@ABR_TOOL_NAME@.exe"
             VALUE "ProductName",      "AltaStor"
             VALUE "ProductVersion",   ABR_DISK_TOOLS_VERSION

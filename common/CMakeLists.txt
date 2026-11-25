@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright © 2026 Norvitex OÜ
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
 #
 # The CLI every tool shares: the option parser and table, the --json writer,
 # the copy loops, the chain merge, the commands that touch no disk backend,

@@ -101,7 +101,10 @@ Common to every build:
   `../vddk/include/vixDiskLib.h` exists, or name it with `-DVDDK_DIR=`. Only the
   **headers** are needed to build; the library is loaded at run time (see
   [vmdk-tool/README.md](vmdk-tool/README.md#vddk-and-the-library-search-path)).
-  Without them the tool is built with the SOAP API alone
+  Without them the tool is built with the SOAP API alone.
+  [LibreVDDK](https://github.com/AltaStor/librevddk), a free and open-source drop-in replacement for VMware's
+  library, can stand in for the VDDK in both places: its developer kit has the headers to build with, and its
+  library is loaded in place of VMware's (see [vmdk-tool/README.md](vmdk-tool/README.md#running-it))
 - for the SOAP API, abr-disk-lib's `vsphere-soap-lib` submodule, which the
   `--recursive` above fetches, and Boost 1.75 or later (Asio, Beast, JSON) and
   pugixml, found installed (`CMAKE_PREFIX_PATH`) or else fetched by the
@@ -243,6 +246,9 @@ the launcher looks for the binary beside itself, so keep the two together.
 `abr-vhdx-tool.exe` is the one file, also in `<prefix>/bin`; `--strip` takes a
 release build from about 17 MB down to 12.
 
+Both put [LICENSE](LICENSE), [NOTICE](NOTICE) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) in
+`<prefix>/share/doc/abr-disk-tools`, the notices that go with every copy of the tools.
+
 ## Adding a format
 
 A tool is a folder named `<format>-tool` and one line. For a format `foo`
@@ -276,6 +282,27 @@ whose backend `abr-disk-lib` already has:
    That reads `foo-tool/`, creates `ABR_BUILD_FOO_TOOL`, and makes `foo` a name
    `ABR_ENABLED_TOOLS` takes.
 5. A manual in `doc/`, a `foo-tool/README.md`, and a row in the table at the top.
+   Third-party software the tool builds in gets a row and its notice in
+   [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 The backend itself -- the classes derived from `IDiskReader` and `IDiskWriter`
 -- goes in `abr-disk-lib`, not here.
+
+## Authors and license
+
+abr-disk-tools is developed by [AltaStor.com](https://altastor.com), copyright © 2026 Norvitex OÜ, as are its
+submodules abr-backup-lib and abr-disk-lib, and abr-disk-lib's vsphere-soap-lib.
+It is licensed under the [Apache License, Version 2.0](LICENSE), marked in the source files with an
+`SPDX-License-Identifier: Apache-2.0` line.
+A redistribution keeps the attribution in [NOTICE](NOTICE).
+
+The tools are built with third-party software that keeps its own licenses: the AWS SDK for C++ and its runtime,
+OpenSSL, Zstandard, crc32c and zlib in both, Boost and pugixml in `abr-vmdk-tool`, and the MinGW-w64 and GCC runtimes
+in a MinGW build of `abr-vhdx-tool.exe`.
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists which of them each tool has built in and reproduces their
+notices and licenses.
+
+The VMware Virtual Disk Development Kit is not distributed with `abr-vmdk-tool`, which loads it at run time from where
+it is installed, under the license it is downloaded with.
+[LibreVDDK](https://github.com/AltaStor/librevddk), an alternative to VMware's library under Apache 2.0, can be loaded
+in its place.

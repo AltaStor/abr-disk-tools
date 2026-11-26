@@ -63,6 +63,8 @@ On `main`, not in any release yet.
   script as a `SecureString` parameter rather than in the script text, which
   PowerShell 5.1 may log. The Hyper-V test scripts now pass every key through
   `--stdin-keys`.
+- `NOTICE` and `THIRD-PARTY-NOTICES.md`: the attribution of the tools, and the notices and licenses of the third-party
+  software each tool has built in. `cmake --install` puts them in `share/doc/abr-disk-tools` along with `LICENSE`.
 
 ### Fixed
 

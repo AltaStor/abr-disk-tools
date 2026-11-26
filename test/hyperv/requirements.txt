@@ -1,1 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright © 2026 Norvitex OÜ (AltaStor.com)
+#
+# Python packages hv.py needs to reach a Hyper-V host over PowerShell remoting
 pypsrp>=0.8

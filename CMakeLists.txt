@@ -193,6 +193,11 @@ foreach(_abr_tool IN LISTS _abr_tool_folders)
     add_subdirectory(${_abr_tool})
 endforeach()
 
+# The license, the attribution a redistribution keeps and the notices of the third-party software built into the tools,
+# in share/doc/abr-disk-tools by default.
+include(GNUInstallDirs)
+install(FILES LICENSE NOTICE THIRD-PARTY-NOTICES.md DESTINATION "${CMAKE_INSTALL_DOCDIR}")
+
 # CMake reserves the name "clean" for its own built-in target, which only
 # removes tracked build outputs and leaves the configured build tree in place.
 # This instead removes the whole build directory, so the next configure starts

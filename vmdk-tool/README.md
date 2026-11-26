@@ -49,6 +49,12 @@ on the search path, so a VMware bundle's file should stay in its `lib64`, where
 the transport plugins are. It cannot be set together with
 `ABR_VMDK_TOOL_VDDK_DIR`.
 
+[LibreVDDK](https://github.com/AltaStor/librevddk), a free and open-source drop-in replacement for VMware's library,
+runs the same way, with `ABR_VMDK_TOOL_VDDK_LIB` naming the `lib/libvixDiskLib.so.8.0.3` of its kit.
+It reaches the disks of an ESXi host or a vCenter over HotAdd, NBDSSL and NBD, and opens no local VMDK files.
+Its writes, which `restore` needs, are limited to the current disk of a powered-off VM and are off by default.
+Without `--vddk-config` the tool switches them on over NBD and HotAdd in the configuration it hands the library.
+
 `ABR_VMDK_TOOL_VDDK_TMPDIR` is read by the binary rather than the launcher. It
 names the directory the VDDK keeps its logs and temporary files in when no
 `--vddk-config` is given, by default `/var/log/altastor-backup/vddk`, which the

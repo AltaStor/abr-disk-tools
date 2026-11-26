@@ -139,6 +139,8 @@ a VMDK, reached one of two ways that `--api` chooses:
   is built with it. Without `--host`, `--vmdk` still goes through VDDK but
   opens the path as a local VMDK file rather than one on a vSphere host,
   useful for VMDKs already exported to local disk.
+  [LibreVDDK](https://github.com/AltaStor/librevddk), a free and open-source replacement for VMware's library, can be
+  loaded in its place for the disks on a vSphere host; it opens no local files.
 - `soap`, the vSphere Web Services (SOAP) API and plain HTTPS, through
   vsphere-soap-lib. It needs no VMware library on the host, and is always
   remote. What it can and cannot do is under
@@ -159,7 +161,7 @@ With `--host`, the options below describe the vCenter/ESXi connection.
 | `--snapshot` | `MOREF` | Managed object reference of the VM snapshot to read from/write to, instead of the VM's current point. Over SOAP, backups only. |
 | `--nfc-port` | `PORT` | VDDK only. NFC port on the ESXi host used for the actual data transfer. Default: `902`. |
 | `--transport` | `MODES` | VDDK only. Colon-separated VDDK transport mode list, tried in order, e.g. `nbdssl:nbd:hotadd:san`. Left to VDDK's own default when omitted. |
-| `--vddk-config` | `FILE` | VDDK only. Configuration file handed to the VDDK when it starts (`VixDiskLib_InitEx`), with the settings VMware documents for transports and logging. A file that cannot be read is an error rather than a silent fall back to the defaults. The file is handed over as it is. Without the option the VDDK gets a configuration of the tool's own: two settings that switch on writes over NBD and HotAdd for a library that keeps them off by default, which VMware's VDDK ignores, and `tmpDirectory` set to the directory `ABR_VMDK_TOOL_VDDK_TMPDIR` names, by default `/var/log/altastor-backup/vddk`, as long as that directory exists, so its logs and temporary files are kept there. The tool never creates it: without it the VDDK keeps its own temporary directory. |
+| `--vddk-config` | `FILE` | VDDK only. Configuration file handed to the VDDK when it starts (`VixDiskLib_InitEx`), with the settings VMware documents for transports and logging. A file that cannot be read is an error rather than a silent fall back to the defaults. The file is handed over as it is. Without the option the VDDK gets a configuration of the tool's own: two settings that switch on writes over NBD and HotAdd for LibreVDDK, which keeps them off by default (VMware's VDDK ignores them), and `tmpDirectory` set to the directory `ABR_VMDK_TOOL_VDDK_TMPDIR` names, by default `/var/log/altastor-backup/vddk`, as long as that directory exists, so its logs and temporary files are kept there. The tool never creates it: without it the VDDK keeps its own temporary directory. |
 | `--quiesce` | — | SOAP only. Quiesce the guest file systems through VMware Tools when snapshotting a running VM for a backup. |
 | `--cluster` | `NAME` | SOAP only. Cluster or standalone host that the temporary VM of a new disk runs on. Needed only when the datastore is shared by more than one. |
 | `--resource-pool` | `NAME` | SOAP only. Resource pool of that cluster or host for the same. Default: its root pool. |

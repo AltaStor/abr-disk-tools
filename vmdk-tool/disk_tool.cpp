@@ -400,7 +400,7 @@ std::string vddkTmpDirectory()
 }
 
 // The configuration the VDDK starts with when no --vddk-config is given. It makes vddkTmpDirectory() the VDDK's
-// temporary directory when there is one, and switches on writes over NBD and HotAdd for a library that keeps them
+// temporary directory when there is one, and switches on writes over NBD and HotAdd for LibreVDDK, which keeps them
 // off until its configuration says so; VMware's VDDK ignores those keys.
 // The VDDK takes its settings from a file only, so they are written to an anonymous memory file it opens through
 // /proc. The descriptor stays open for the life of the process.

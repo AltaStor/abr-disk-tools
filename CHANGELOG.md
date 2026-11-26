@@ -6,9 +6,11 @@ A release is a tag, `v<year>.<month>` and then `v<year>.<month>.<n>`, on its
 release branch (`v26.09.x` for 26.09); fixes reach a release branch from `main` by
 cherry-pick.
 
-## [v26.11-pre] - Unreleased
+## [v26.11] - 2026-11-26
 
-On `main`, not in any release yet.
+`abr-vmdk-tool` reaches VMware disks over the vSphere SOAP API as well as through the VDDK.
+Both tools restore a chain of backups in one run, copy incrementals, hold a backup under Object Lock until a date and
+read their secrets from standard input.
 
 ### Added
 
@@ -22,6 +24,19 @@ On `main`, not in any release yet.
   `--resource-pool` go with it. `--api vddk` stays the default where the
   tool is built with the VDDK, and the tool now builds with either or both
   (`ABR_DISK_WITH_VDDK`, `ABR_DISK_WITH_SOAP`).
+  A disk created on a VM goes on a controller with a free unit, SCSI first on a VM without disks.
+- `abr-vmdk-tool --vddk-config FILE`: a configuration file handed to the VDDK when it starts (`VixDiskLib_InitEx`), for
+  its transport and logging settings.
+  A file that cannot be read is an error rather than a silent fall back to the VDDK's defaults, and `--api soap`
+  refuses the option.
+- Without `--vddk-config`, `abr-vmdk-tool` hands the VDDK a configuration of its own.
+  It switches on writes over NBD and HotAdd for LibreVDDK, which keeps them off by default, and sets `tmpDirectory` to
+  `/var/log/altastor-backup/vddk`, or to the directory `ABR_VMDK_TOOL_VDDK_TMPDIR` names, when that directory exists.
+  The VDDK's logs and temporary files are then kept there; the tool never creates the directory.
+- `ABR_VMDK_TOOL_VDDK_LIB`, read by the launcher: the VDDK library file itself, under whatever name it has, in place
+  of a VDDK root.
+  Its directory leads the library search path and the tool loads exactly that file.
+  Setting it together with `ABR_VMDK_TOOL_VDDK_DIR` is refused.
 
 - `restore --source-names LIST`, in both tools: restore a chain of backups in
   one run in place of `--name`, the backup to start from first and the
@@ -63,8 +78,12 @@ On `main`, not in any release yet.
   script as a `SecureString` parameter rather than in the script text, which
   PowerShell 5.1 may log. The Hyper-V test scripts now pass every key through
   `--stdin-keys`.
+- `abr-backup-lib/doc/abr-backup-format.md` describes the `.abr` format field by field: the index and the data file,
+  chunking and zero blocks, encryption, the integrity checks and the commit protocol.
 - `NOTICE` and `THIRD-PARTY-NOTICES.md`: the attribution of the tools, and the notices and licenses of the third-party
   software each tool has built in. `cmake --install` puts them in `share/doc/abr-disk-tools` along with `LICENSE`.
+- The READMEs and the manual name LibreVDDK, a free and open-source drop-in replacement for VMware's VDDK library, and
+  describe how `abr-vmdk-tool` is built and run with it.
 
 ### Fixed
 
@@ -74,6 +93,9 @@ On `main`, not in any release yet.
   decides what a name holds: with it, `.abrd` and `.abri` are held as before;
   without it, the `.abrm` alone is. A name that holds neither, or an index
   without its data, is reported as such.
+- A header, index or chunk whose stored CRC32C was 0 was read unchecked, since 0 used to mean "not checksummed": a
+  zeroed field, or a chunk whose real checksum is 0, passed `restore`, `copy` and `verify`.
+  Every CRC32C is now checked whatever its value.
 
 ### Changed
 
@@ -82,6 +104,15 @@ On `main`, not in any release yet.
   (Debian's `g++-mingw-w64-ucrt64`) by default, and `ABR_MINGW_TRIPLE` names
   another UCRT toolchain; a native build needs the MSYS2 UCRT64 environment.
   A non-UCRT compiler is refused at configure time.
+- An incremental over the VDDK asks vSphere what changed since `--change-id` through the SOAP API
+  (`QueryChangedDiskAreas`), and reads the data through the VDDK as before.
+  It takes a tool built with the SOAP API and a disk on a host; a local VMDK has no incrementals.
+- A backup whose records point into a data file other than its own, which no version writes, is refused, and the
+  tools no longer build on a big-endian host, where the index would not match the format.
+  Backups written by earlier versions restore unchanged, encrypted ones included.
+- The copyright lines of the sources and of the Windows version resource read Norvitex OÜ (AltaStor.com).
+- The `abr-disk-lib` submodule comes from a new repository, whose history starts in November 2026.
+  The `abr-disk-lib` commits that the 26.09 tags pin are not in it.
 
 ## [v26.09.2] - 2026-10-15
 
